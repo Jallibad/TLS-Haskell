@@ -1,0 +1,99 @@
+name:                language
+version:             0.1.0.0
+github:              "jallibad/language"
+license:             ""
+author:              "Jordan Alligood"
+copyright:           "2018 Jordan Alligood"
+
+ghc-options:
+- -Wall
+- -fno-warn-tabs
+- -Werror
+- -threaded
+- -rtsopts
+- -with-rtsopts=-N
+
+dependencies:
+- base
+- text
+- bytestring
+- vector
+- mtl
+- safe-exceptions
+- time
+- network
+- cpu
+- random
+- optparse-applicative
+- sized
+- type-natural
+- megaparsec
+- containers
+- parser-combinators
+- binary
+- singletons
+- split
+
+default-extensions:
+- TupleSections
+- LambdaCase
+- MultiWayIf
+- TypeOperators
+- OverloadedStrings
+- OverloadedLists
+- ViewPatterns
+- PatternSynonyms
+- ExplicitForAll
+- TypeApplications
+- ScopedTypeVariables
+- RankNTypes
+- LiberalTypeSynonyms
+- NamedFieldPuns
+- RecordWildCards
+- FlexibleInstances
+- FlexibleContexts
+- DeriveFunctor
+- DeriveFoldable
+- DeriveTraversable
+- GeneralizedNewtypeDeriving
+- InstanceSigs
+- ConstrainedClassMethods
+- MultiParamTypeClasses
+- FunctionalDependencies
+- DeriveGeneric
+- NamedWildCards
+- PartialTypeSignatures
+- ExistentialQuantification
+- GADTSyntax
+- GADTs
+- TypeFamilies
+- TypeFamilyDependencies
+- AllowAmbiguousTypes
+- KindSignatures
+- ConstraintKinds
+- DataKinds
+- PolyKinds
+- TypeInType
+- EmptyCase
+- StandaloneDeriving
+- DefaultSignatures
+- DeriveAnyClass
+- DerivingStrategies
+- DisambiguateRecordFields
+- DuplicateRecordFields
+- OverloadedLabels
+- BangPatterns
+- ApplicativeDo
+- NegativeLiterals
+- NumDecimals
+- BinaryLiterals
+- QuasiQuotes
+- UnicodeSyntax
+- NoMonomorphismRestriction
+- PostfixOperators
+- PackageImports
+
+executables:
+  language:
+    main:                Main.hs
+    source-dirs:         src
