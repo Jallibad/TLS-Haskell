@@ -1,17 +1,20 @@
 {-# LANGUAGE PatternSynonyms #-}
 
-module UInt where
+module Utility.UInt
+	( UInt
+	) where
 
 import Control.Monad (replicateM)
-import Data.Binary
+import Data.Binary (Binary, Word8, get, put)
 import Data.Bits
 import Data.Foldable (foldl')
 import Data.List.Split (chunksOf)
 import Data.Proxy (Proxy (..))
-import Data.Sized hiding (reverse, replicate, map, length, (++))
+import Data.Sized hiding (fmap, reverse, replicate, map, length, (++))
 import GHC.TypeNats (KnownNat, Nat, natVal)
 
-newtype UInt (n :: Nat) = UInt (Sized [] n Bool) deriving (Eq, Ord)
+type BitList (n :: Nat) = Sized [] n Bool
+newtype UInt (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)
 
 boolListToNum :: (Foldable t, Num a) => t Bool -> a
 boolListToNum = foldl' (\x b -> x*2+(if b then 1 else 0)) 0
@@ -25,6 +28,9 @@ toWord8Chunk (UInt n) = map boolListToNum $ chunksOf 8 $ padding ++ bits
 fromWord8Chunk :: KnownNat n => [Word8] -> UInt n
 fromWord8Chunk = foldl (\x y -> x*256 + fromIntegral y) 0
 
+asVector :: KnownNat n => (BitList n -> BitList n) -> UInt n -> UInt n
+asVector f (UInt v) = UInt $ f v
+
 asInteger :: Integral a => (Integer -> Integer -> Integer) -> a -> a -> a
 asInteger f a b = fromInteger $ f (toInteger a) (toInteger b)
 
@@ -32,9 +38,24 @@ instance KnownNat n => Binary (UInt n) where
 	get = fromWord8Chunk <$> replicateM numChunks get
 		where numChunks = ceiling $ fromIntegral (natVal (Proxy :: Proxy n)) / (8 :: Rational)
 	put = mapM_ put . toWord8Chunk
+instance KnownNat n => Bits (UInt n) where
+	(.&.) = asInteger (.&.)
+	(.|.) = asInteger (.|.)
+	xor = asInteger xor
+	complement = asVector $ fmap not
+	shift = undefined
+	rotate = undefined
+	bitSizeMaybe = Just . finiteBitSize
+	bitSize = finiteBitSize
+	isSigned = const False
+	testBit = undefined
+	bit = undefined
+	popCount = undefined
 instance KnownNat n => Enum (UInt n) where
 	toEnum = fromIntegral
 	fromEnum = fromIntegral
+instance KnownNat n => FiniteBits (UInt n) where
+	finiteBitSize = const $ fromIntegral $ natVal (Proxy :: Proxy n)
 instance KnownNat n => Integral (UInt n) where
 	quotRem = undefined
 	toInteger (UInt n) = boolListToNum $ toList n
