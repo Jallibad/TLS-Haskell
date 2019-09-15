@@ -5,7 +5,10 @@ module Utility.ModularArithmetic
 	, quadraticResidue
 	) where
 
+import Control.Arrow
 import Data.Function (on)
+import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy (..))
 import GHC.TypeLits (Nat, natVal, KnownNat)
 
@@ -57,5 +60,27 @@ instance ValidMod a m => Bounded (Mod a m) where
 	minBound = 0
 	maxBound = 0 - 1
 
+legendreSymbol :: forall a m. ValidMod a m => Mod a m -> Mod a m
+legendreSymbol a = a ^ ((natVal (Proxy :: Proxy m) - 1) `div` 2)
+
+isQuadraticNonResidue :: ValidMod a m => Mod a m -> Bool
+isQuadraticNonResidue = (== -1) . legendreSymbol
+
+tonelliShanks :: forall a m. ValidMod a m => Mod a m -> Mod a m
+tonelliShanks n = case check of {0 -> 0; 1 -> result; _ -> error "Something is wrong with the loop"}
+	where
+		p = natVal (Proxy :: Proxy m)
+		(q, s :: Integer) = until (odd . fst) ((`div` 2) *** succ) (p - 1, 0)
+		z = fromMaybe (error "Can't find any quadratic nonresidues") $ find @[] isQuadraticNonResidue [0..]
+		condition (_, _, t, _) = t == 0 || t == 1
+		update (m, c, t, r) = (i, b^(2 :: Integer), t * b ^ (2 :: Integer), r*b)
+			where
+				i = until (\i' -> t ^ (2 :: Integer) ^ i' == 1) succ 0
+				b = c ^ (2 :: Integer) ^ (m - i - 1)
+		(_, _, check, result) = until condition update (s, z^q, n^q, n^((q+1) `div` 2))
+
 quadraticResidue :: ValidMod a m => Mod a m -> [Mod a m]
-quadraticResidue n = filter ((==n) . (^(2 :: Int))) [0..maxBound]
+quadraticResidue n = case legendreSymbol n of
+	-1 -> []
+	1 -> let r = tonelliShanks n in [-r, r]
+	_ -> undefined

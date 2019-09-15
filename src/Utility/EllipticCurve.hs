@@ -1,19 +1,28 @@
-{-# LANGUAGE TypeFamilyDependencies #-}
+module Utility.EllipticCurve
+	( EllipticCurve (..)
+	, encrypt
+	) where
 
-module Utility.EllipticCurve where
+import Data.Kind (Type)
+import GHC.TypeNats (Nat)
+import Utility.ModularArithmetic (ValidMod)
 
-import Data.Kind
-import GHC.TypeNats
-import Utility.ModularArithmetic
--- import qualified Utility.EllipticCurve.Weierstrass as Sub
+-- |Class representing <https://en.wikipedia.org/wiki/Elliptic_curve Elliptic Curves>
+class EllipticCurve (c :: Type -> Nat -> Type) where
+	data Point c (n :: Type) (p :: Nat)
 
-class EllipticCurve (a :: Type -> Nat -> Type) where
-	type family Point a (n :: Type) (p :: Nat)
+	-- |Add two points on an elliptic curve
 	infixl 6 ~+
-	(~+) :: forall n p. ValidMod n p => Point a n p -> Point a n p-> Point a n p
-	negate :: forall n p. ValidMod n p => Point a n p -> Point a n p
+	(~+) :: ValidMod n p => Point c n p -> Point c n p -> Point c n p
+
+	negate :: ValidMod n p => Point c n p -> Point c n p
+
 	infixl 6 ~-
-	(~-) :: forall n p. ValidMod n p => Point a n p -> Point a n p -> Point a n p
+	(~-) :: ValidMod n p => Point c n p -> Point c n p -> Point c n p
+	p1 ~- p2 = p1 ~+ Utility.EllipticCurve.negate p2
+
 	infixr 7 ~*
-	(~*) :: forall n p. ValidMod n p => n -> Point a n p -> Point a n p
-	-- a ~- b = (Utility.EllipticCurve.negate :: Point a n p -> Point a n p) b
+	(~*) :: ValidMod n p => n -> Point c n p -> Point c n p
+
+encrypt :: (EllipticCurve c, ValidMod n p) => Point c n p -> n -> n -> Point c n p -> (Point c n p, Point c n p)
+encrypt g k nb pm = (k ~* g, pm ~+ (k*nb) ~* g)

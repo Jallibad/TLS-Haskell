@@ -8,16 +8,12 @@ import Data.Binary.Get (getLazyByteString)
 import Data.Binary.Put (putLazyByteString)
 import Data.ByteString.Lazy as BS
 import GHC.TypeNats (KnownNat, Nat)
+import ProtocolVersion
 import Utility.BinaryEnum (BinaryEnum, equivalences)
 import Utility.UInt (UInt)
 
 data MalformedMessageException = MalformedMessageException String deriving Show
 instance Exception MalformedMessageException
-
-data ProtocolVersion = ProtocolVersion {major :: UInt 8, minor :: UInt 8} deriving (Eq, Show)
-instance Binary ProtocolVersion where
-	get = ProtocolVersion <$> get <*> get
-	put (ProtocolVersion major minor) = put major >> put minor
 
 data ContentType = ChangeCipherSpec | Alert | Handshake | ApplicationData deriving (Eq, Ord, Show)
 instance BinaryEnum ContentType Word8 where

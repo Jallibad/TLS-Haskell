@@ -4,14 +4,16 @@ module Utility.UInt
 	( UInt
 	) where
 
+import Control.Arrow (first)
 import Control.Monad (replicateM)
 import Data.Binary (Binary, Word8, get, put)
-import Data.Bits
+import Data.Bits (Bits (..), FiniteBits (..))
 import Data.Foldable (foldl')
 import Data.List.Split (chunksOf)
 import Data.Proxy (Proxy (..))
 import Data.Sized hiding (fmap, reverse, replicate, map, length, (++))
 import GHC.TypeNats (KnownNat, Nat, natVal)
+import System.Random
 
 type BitList (n :: Nat) = Sized [] n Bool
 newtype UInt (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)
@@ -38,6 +40,7 @@ instance KnownNat n => Binary (UInt n) where
 	get = fromWord8Chunk <$> replicateM numChunks get
 		where numChunks = ceiling $ fromIntegral (natVal (Proxy :: Proxy n)) / (8 :: Rational)
 	put = mapM_ put . toWord8Chunk
+
 instance KnownNat n => Bits (UInt n) where
 	(.&.) = asInteger (.&.)
 	(.|.) = asInteger (.|.)
@@ -51,14 +54,18 @@ instance KnownNat n => Bits (UInt n) where
 	testBit = undefined
 	bit = undefined
 	popCount = undefined
+
 instance KnownNat n => Enum (UInt n) where
 	toEnum = fromIntegral
 	fromEnum = fromIntegral
+
 instance KnownNat n => FiniteBits (UInt n) where
 	finiteBitSize = const $ fromIntegral $ natVal (Proxy :: Proxy n)
+
 instance KnownNat n => Integral (UInt n) where
 	quotRem = undefined
 	toInteger (UInt n) = boolListToNum $ toList n
+
 instance KnownNat n => Num (UInt n) where
 	(+) = asInteger (+)
 	(*) = asInteger (*)
@@ -67,7 +74,17 @@ instance KnownNat n => Num (UInt n) where
 	fromInteger = UInt . unsafeFromList' . reverse . flip map bitRange . testBit
 		where bitRange = [0..fromIntegral (natVal (Proxy :: Proxy n)) - 1]
 	(-) = asInteger (-)
+
 instance KnownNat n => Real (UInt n) where
 	toRational = toRational . toInteger
+
 instance KnownNat n => Show (UInt n) where
 	show = show . toInteger
+
+instance KnownNat n => Bounded (UInt n) where
+	minBound = 0
+	maxBound = negate 1
+
+instance KnownNat n => Random (UInt n) where
+	randomR (low, high) = first fromIntegral . randomR (toInteger low, toInteger high)
+	random = randomR (minBound, maxBound)

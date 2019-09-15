@@ -46,4 +46,4 @@ client = do
 		send sock sampleMessage
 
 sampleMessage :: ByteString
-sampleMessage = pack [0x14,0x03,0x03,0x00,0x01,50]
+sampleMessage = pack [0x14,0x03,0x03,0x00,0x05,49,50,51,52,53]

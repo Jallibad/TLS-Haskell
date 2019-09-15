@@ -36,6 +36,7 @@ dependencies:
 - monad-loops
 - bimap
 - conduit
+- exceptions
 
 default-extensions:
 - TupleSections
@@ -96,7 +97,10 @@ default-extensions:
 - PostfixOperators
 - PackageImports
 
+library:
+  source-dirs: src/
+
 executables:
   language:
     main:                Main.hs
-    source-dirs:         src
+    source-dirs:         app

@@ -1,6 +1,6 @@
 module CompressionMethod where
 
-import Data.Binary
+-- import Data.Binary
 import RecordLayer.Types
 
 class CompressionMethod c m where
