@@ -1,13 +1,13 @@
-{-# LANGUAGE PatternSynonyms #-}
+-- {-# LANGUAGE PatternSynonyms #-}
 
 module Utility.UInt
 	( UInt
 	) where
 
-import Control.Arrow (first)
+import Control.Arrow (first, (***))
 import Control.Monad (replicateM)
 import Data.Binary (Binary, Word8, get, put)
-import Data.Bits (Bits (..), FiniteBits (..))
+import Data.Bits (Bits (..), FiniteBits (..), testBitDefault)
 import Data.Foldable (foldl')
 import Data.List.Split (chunksOf)
 import Data.Proxy (Proxy (..))
@@ -46,13 +46,14 @@ instance KnownNat n => Bits (UInt n) where
 	(.|.) = asInteger (.|.)
 	xor = asInteger xor
 	complement = asVector $ fmap not
-	shift = undefined
-	rotate = undefined
+	shift n i = fromInteger $ shift (fromIntegral n) i
+	rotate n i = boolListToNum $ map (\x -> testBit n $ (x - i) `mod` len) $ reverse [0.. len - 1]
+		where len = finiteBitSize n
 	bitSizeMaybe = Just . finiteBitSize
 	bitSize = finiteBitSize
 	isSigned = const False
-	testBit = undefined
-	bit = undefined
+	testBit = testBitDefault
+	bit = (2^)
 	popCount = undefined
 
 instance KnownNat n => Enum (UInt n) where
@@ -63,7 +64,7 @@ instance KnownNat n => FiniteBits (UInt n) where
 	finiteBitSize = const $ fromIntegral $ natVal (Proxy :: Proxy n)
 
 instance KnownNat n => Integral (UInt n) where
-	quotRem = undefined
+	quotRem a b = (fromIntegral *** fromIntegral) $ quotRem (fromIntegral a :: Integer) (fromIntegral b)
 	toInteger (UInt n) = boolListToNum $ toList n
 
 instance KnownNat n => Num (UInt n) where

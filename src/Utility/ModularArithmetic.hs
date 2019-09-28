@@ -5,12 +5,13 @@ module Utility.ModularArithmetic
 	, quadraticResidue
 	) where
 
-import Control.Arrow
+import Control.Arrow ((***), first)
 import Data.Function (on)
 import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy (..))
 import GHC.TypeLits (Nat, natVal, KnownNat)
+import System.Random
 
 newtype Mod a (m :: Nat) = Mod a deriving (Eq, Ord)
 type ValidMod a m = (Integral a, KnownNat m)
@@ -47,6 +48,7 @@ diffs _ (_:[]) = []
 diffs f (x:y:xs) = (f x y) : diffs f (y:xs)
 
 modInverse :: forall a m. ValidMod a m => Mod a m -> Maybe (Mod a m)
+modInverse 0 = Nothing
 modInverse a
 	| last r == 1 = Just $ fromIntegral $ last $ init s
 	| otherwise = Nothing
@@ -60,6 +62,10 @@ instance ValidMod a m => Bounded (Mod a m) where
 	minBound = 0
 	maxBound = 0 - 1
 
+instance ValidMod a m => Random (Mod a m) where
+	randomR (low, high) = first fromIntegral . randomR (toInteger low, toInteger high)
+	random = randomR (minBound, maxBound)
+
 legendreSymbol :: forall a m. ValidMod a m => Mod a m -> Mod a m
 legendreSymbol a = a ^ ((natVal (Proxy :: Proxy m) - 1) `div` 2)
 
@@ -67,17 +73,17 @@ isQuadraticNonResidue :: ValidMod a m => Mod a m -> Bool
 isQuadraticNonResidue = (== -1) . legendreSymbol
 
 tonelliShanks :: forall a m. ValidMod a m => Mod a m -> Mod a m
-tonelliShanks n = case check of {0 -> 0; 1 -> result; _ -> error "Something is wrong with the loop"}
+tonelliShanks n = looper s (z^q) (n^q) (n ^ ((q+1) `div` 2))
 	where
 		p = natVal (Proxy :: Proxy m)
 		(q, s :: Integer) = until (odd . fst) ((`div` 2) *** succ) (p - 1, 0)
 		z = fromMaybe (error "Can't find any quadratic nonresidues") $ find @[] isQuadraticNonResidue [0..]
-		condition (_, _, t, _) = t == 0 || t == 1
-		update (m, c, t, r) = (i, b^(2 :: Integer), t * b ^ (2 :: Integer), r*b)
+		looper _ _ 0 _ = 0
+		looper _ _ 1 r = r
+		looper m c t r = looper i (b^(2 :: Integer)) (t * b ^ (2 :: Integer)) (r*b)
 			where
 				i = until (\i' -> t ^ (2 :: Integer) ^ i' == 1) succ 0
 				b = c ^ (2 :: Integer) ^ (m - i - 1)
-		(_, _, check, result) = until condition update (s, z^q, n^q, n^((q+1) `div` 2))
 
 quadraticResidue :: ValidMod a m => Mod a m -> [Mod a m]
 quadraticResidue n = case legendreSymbol n of

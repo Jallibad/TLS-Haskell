@@ -9,6 +9,7 @@ import GHC.Exts (IsList (..))
 import Utility.Binary (getNBytes)
 
 newtype Bytes n = Bytes (Sized [] n Word8)
+	deriving Eq
 
 instance forall (n :: Nat). KnownNat n => IsList (Bytes n) where
 	type Item (Bytes n) = Word8

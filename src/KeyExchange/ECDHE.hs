@@ -1,24 +1,20 @@
 module KeyExchange.ECDHE where
 
-import Control.Concurrent.MVar
--- import Data.Kind (Type)
+import Control.Monad.State.Lazy
+import Data.Kind (Type)
+import GHC.TypeNats (Nat)
+import KeyExchange
 import System.Random
+import Utility.EllipticCurve
 -- import Utility.EllipticCurve.Weierstrass
-import Utility.UInt
+import Utility.ModularArithmetic (ValidMod)
+-- import Utility.UInt
 
-class KeyExchange a where
-	type PublicKey a
-	type PrivateKey a
-	server :: RandomGen g => MVar g -> IO (PublicKey a, PrivateKey a)
-	client :: RandomGen g => MVar g -> IO (PublicKey a, PrivateKey a)
-
-genPrivateKey :: RandomGen g => g -> UInt 32
-genPrivateKey = undefined
-
--- data ECDHE (k :: Type)
--- instance KeyExchange (ECDHE k) where
--- 	type PublicKey (ECDHE k) = k
--- 	type PrivateKey (ECDHE k) = k
-	-- server g = 
-
--- server :: RandomGen g => g -> EllipticCurve n p -> Point n p -> 
+newtype ECDHE (c :: Type -> Nat -> Type) (n :: Type) (p :: Nat) = ECDHE (Point c n p)
+instance (EllipticCurve c, Random n, ValidMod n p) => KeyExchange (ECDHE c n p) where
+	type PublicKey (ECDHE c n p) = Point c n p
+	type PrivateKey (ECDHE c n p) = n
+	genKeyPair (ECDHE g) = do
+		(private, gen) <- random <$> get
+		put gen
+		return (private ~* g, private)

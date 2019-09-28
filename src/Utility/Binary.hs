@@ -7,22 +7,25 @@ import Data.Binary.Get (getLazyByteString, isEmpty, runGetOrFail)
 import Data.Binary.Put (putLazyByteString, runPut)
 import Data.ByteString.Lazy as BS (ByteString, length, null)
 import Data.List (unfoldr)
+import GHC.Int (Int64)
 import RecordLayer.Types (MalformedMessageException (..))
 
 getAll :: Binary a => Get [a]
-getAll = untilM get isEmpty
+getAll = getAll' get
 
-getNBytes :: forall a b. (Integral a, Binary b) => a -> Get [b]
+getAll' :: Get a -> Get [a]
+getAll' = flip untilM isEmpty
+
+getNBytes :: Binary a => Int64 -> Get [a]
 getNBytes 0 = pure []
-getNBytes n = getLazyByteString (fromIntegral n) >>= thing
+getNBytes n = getLazyByteString n >>=
+				either handleError handleSuccess . runGetOrFail getAll
 	where
-		thing :: ByteString -> Get [b]
-		thing = either handleError handleSuccess . runGetOrFail getAll
 		handleError (_, _, errorMsg) = fail errorMsg
 		handleSuccess (_, _, x) = pure x
 
 getListWithLengthTag :: forall n a. (Integral n, Binary n, Binary a) => Get [a]
-getListWithLengthTag = get @n >>= getNBytes
+getListWithLengthTag = get @n >>= getNBytes . fromIntegral
 
 getWithLengthTag :: forall n a. (Integral n, Binary n, Binary a) => Get a
 getWithLengthTag = do

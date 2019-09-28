@@ -100,6 +100,27 @@ default-extensions:
 library:
   source-dirs: src/
 
+tests:
+  test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -fno-warn-orphans
+    dependencies:
+      - language
+      - hspec
+      - QuickCheck
+      - smallcheck
+      - hspec-smallcheck
+
+benchmarks:
+  benchmark:
+    main: Main.hs
+    source-dirs: benchmark
+    dependencies:
+      - language
+      - criterion
+
 executables:
   language:
     main:                Main.hs
