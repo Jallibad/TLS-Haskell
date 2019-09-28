@@ -6,13 +6,13 @@ import Data.Binary-- (encode)
 import Data.Binary.Get (runGet)
 import Data.Bits (Bits (..))
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BS (length, pack, unpack)
+import qualified Data.ByteString.Lazy as BS --(length, pack, unpack)
 import Data.Foldable (foldl')
 import Data.Function ((&))
 import Data.List (uncons)
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V (fromList)
-import Numeric (showHex)
+-- import Numeric (showHex)
 import Utility.Binary --(getAll)
 import Utility.UInt (UInt)
 
@@ -99,8 +99,8 @@ update1 w (a, b, c, d, e, f, g, h) i = ((temp1 + temp2, a, b, c, d + temp1, e, f
 		maj = (a .&. b) `xor` (a .&. c) `xor` (b .&. c)
 		temp2 = s0 + maj
 
-showByteString :: ByteString -> String
-showByteString = Prelude.concatMap (`showHex` "") . BS.unpack
+-- showByteString :: ByteString -> String
+-- showByteString = Prelude.concatMap (`showHex` "") . BS.unpack
 
 -- | Compute the SHA256 hash of the given bytes.
 sha256 :: ByteString -> ByteString

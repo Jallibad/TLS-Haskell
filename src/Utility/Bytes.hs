@@ -21,5 +21,5 @@ instance forall (n :: Nat). KnownNat n => Show (Bytes n) where
 	show = show . GHC.Exts.toList
 
 instance forall (n :: Nat). KnownNat n => Binary (Bytes n) where
-	get = Bytes . unsafeFromList' <$> (getNBytes $ natVal $ Proxy @n)
+	get = Bytes . unsafeFromList' <$> (getNBytes $ fromIntegral $ natVal $ Proxy @n)
 	put = mapM_ put . GHC.Exts.toList
