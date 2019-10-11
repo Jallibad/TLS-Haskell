@@ -1,5 +1,5 @@
 module Hash.SHA256
-	( sha256
+	( SHA256
 	) where
 
 import Data.Binary-- (encode)
@@ -12,9 +12,16 @@ import Data.Function ((&))
 import Data.List (uncons)
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V (fromList)
--- import Numeric (showHex)
+import Data.Word (Word32)
+import Hash
 import Utility.Binary --(getAll)
+import Utility.Bytes (Bytes, fromUInt)
 import Utility.UInt (UInt)
+
+data SHA256
+
+instance HashFunction SHA256 64 32 where
+	hash = (mergeHashValues @Word32) . foldl' hashChunk initialValues . padMessage
 
 type HashValues a = (a, a, a, a, a, a, a, a)
 
@@ -43,16 +50,8 @@ initialValues =
 	, 0x5be0cd19
 	)
 
-update2 :: (Bits a, Num a) => Vector a -> Int -> (Vector a, Int)
-update2 v i = (v <> [((v ! (i - 16)) + s0 + (v ! (i - 7)) + s1)], i + 1)
-	where
-		s0 = (v_15 `rotateR` 7) `xor` (v_15 `rotateR` 18) `xor` (v_15 `shiftR` 3)
-		s1 = (v_2 `rotateR` 17) `xor` (v_2 `rotateR` 19) `xor` (v_2 `shiftR` 10)
-		v_15 = v ! (i - 15)
-		v_2 = v ! (i - 2)
-
-mergeHashValues :: (Integral a, Bits b, Num b) => HashValues a -> b
-mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) =
+mergeHashValues :: Integral a => HashValues a -> Bytes 32
+mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) = fromUInt $
 	shiftL (fromIntegral h0) 224
 	.|. shiftL (fromIntegral h1) 192
 	.|. shiftL (fromIntegral h2) 160
@@ -69,7 +68,7 @@ preprocess :: ByteString -> ByteString
 preprocess = mconcat . (<$> [id, padding, len]) . (&)
 	where
 		padding = padZeros . getPaddingLength
-		len = encode @(UInt 64) . fromIntegral . BS.length
+		len = encode . (* (8 :: UInt 64)) . fromIntegral . BS.length
 
 padZeros :: Int -> ByteString
 padZeros = maybe "" (\(x, xs) -> BS.pack $ (x .|. 0b10000000) : xs) . uncons . flip replicate 0
@@ -87,7 +86,15 @@ thing' :: (Bits a, Num a) => Vector a -> (HashValues a, Int) -> (HashValues a, I
 thing' = uncurry . update1 . buildW
 
 buildW :: (Bits a, Num a) => Vector a -> Vector a
-buildW = fst . until ((>=64) . snd) (uncurry update2) . (,16)
+buildW = fst . until ((>=64) . snd) update2 . (,16)
+
+update2 :: (Bits a, Num a) => (Vector a, Int) -> (Vector a, Int)
+update2 (v, i) = (v <> [((v ! (i - 16)) + s0 + (v ! (i - 7)) + s1)], i + 1)
+	where
+		s0 = (v_15 `rotateR` 7) `xor` (v_15 `rotateR` 18) `xor` (v_15 `shiftR` 3)
+		s1 = (v_2 `rotateR` 17) `xor` (v_2 `rotateR` 19) `xor` (v_2 `shiftR` 10)
+		v_15 = v ! (i - 15)
+		v_2 = v ! (i - 2)
 
 update1 :: (Bits a, Num a) => Vector a -> HashValues a -> Int -> (HashValues a, Int)
 update1 w (a, b, c, d, e, f, g, h) i = ((temp1 + temp2, a, b, c, d + temp1, e, f, g), i + 1)
@@ -98,10 +105,3 @@ update1 w (a, b, c, d, e, f, g, h) i = ((temp1 + temp2, a, b, c, d + temp1, e, f
 		s0 = (a `rotateR` 2) `xor` (a `rotateR` 13) `xor` (a `rotateR` 22)
 		maj = (a .&. b) `xor` (a .&. c) `xor` (b .&. c)
 		temp2 = s0 + maj
-
--- showByteString :: ByteString -> String
--- showByteString = Prelude.concatMap (`showHex` "") . BS.unpack
-
--- | Compute the SHA256 hash of the given bytes.
-sha256 :: ByteString -> ByteString
-sha256 = encode . (mergeHashValues @(UInt 32) @(UInt 256)) . foldl' hashChunk initialValues . padMessage

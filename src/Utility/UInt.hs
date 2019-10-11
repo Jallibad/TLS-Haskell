@@ -1,7 +1,6 @@
--- {-# LANGUAGE PatternSynonyms #-}
-
 module Utility.UInt
 	( UInt
+	, toWord8Chunk
 	) where
 
 import Control.Arrow (first, (***))
