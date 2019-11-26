@@ -44,7 +44,7 @@ instance Binary HandshakeMessage where
 		0x10 -> getMessageContents ClientKeyExchangeMessage
 		0x14 -> getMessageContents FinishedMessage
 		x -> fail $ mconcat [show x, " is not a valid handshake message type"]
-		where getMessageContents = (`fmap` getWithLengthTag @(UInt 24))
+		where getMessageContents = (<$> getWithLengthTag @(UInt 24))
 	put (ClientHelloMessage m)			= put m
 	put (ServerHelloMessage m)			= put m
 	put (ServerCertificateMessage m)	= put m

@@ -20,7 +20,9 @@ import Utility.UInt (UInt)
 
 data SHA256
 
-instance HashFunction SHA256 64 32 where
+instance HashFunction SHA256 where
+	type BlockSize SHA256 = 64
+	type OutputSize SHA256 = 32
 	hash = (mergeHashValues @Word32) . foldl' hashChunk initialValues . padMessage
 
 type HashValues a = (a, a, a, a, a, a, a, a)

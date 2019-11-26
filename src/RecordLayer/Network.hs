@@ -27,7 +27,9 @@ open = do
 server :: IO ()
 server = bracket open close $ accept >=> fst >>> \sock -> do
 	Prelude.putStrLn "Accepted connection from client"
-	messages <- receiveFragments sock
+	m1 : messages <- receiveFragments sock
+	print m1
+	send sock sampleMessage
 	print messages
 	close sock
 
@@ -41,7 +43,9 @@ client = do
 		Prelude.putStrLn $ mconcat ["Attempting to connect to \"", "localhost", "\" on port \"", "3000", "\""]
 		connect sock $ addrAddress addr
 		Prelude.putStrLn "Connected!"
+		messages <- receiveFragments sock
 		send sock sampleMessage
+		print messages
 		send sock sampleMessage
 		send sock sampleMessage
 

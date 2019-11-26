@@ -13,12 +13,13 @@ import Control.Monad ((>=>))
 import Data.Binary (Binary, get, put)
 import Data.Bits
 import Data.Proxy (Proxy (Proxy))
-import Data.Sized (Sized, toList, unsafeFromList')
+import Data.Sized (Sized, fromListWithDefault', toList, unsafeFromList')
 import qualified Data.Sized as Sized ((++), replicate', zipWith)
 import Data.Word (Word8)
-import GHC.TypeNats (type (*), type (+), KnownNat, Nat, natVal)
 import GHC.Exts (IsList (..))
+import GHC.TypeNats (type (*), type (+), KnownNat, Nat, natVal)
 import Prelude hiding ((++), map, zipWith)
+import System.Random
 import Text.Printf (printf)
 import Utility.Binary (getNBytes)
 import Utility.UInt (UInt, toWord8Chunk)
@@ -29,6 +30,9 @@ newtype Bytes n = Bytes (Sized [] n Word8)
 fromUInt :: forall (n :: Nat). (KnownNat n, KnownNat (n * 8)) => UInt (n * 8) -> Bytes n
 fromUInt = fromList . toWord8Chunk
 
+toUInt :: forall (n :: Nat). KnownNat n => Bytes n -> UInt (n * 8)
+toUInt = undefined
+
 map :: KnownNat n => (Word8 -> Word8) -> Bytes n -> Bytes n
 map f (Bytes xs) = Bytes $ f <$> xs
 
@@ -37,7 +41,7 @@ zipWith f (Bytes a) (Bytes b) = Bytes $ Sized.zipWith f a b
 
 instance forall (n :: Nat). KnownNat n => IsList (Bytes n) where
 	type Item (Bytes n) = Word8
-	fromList = fromListPadLeft
+	fromList = Bytes . fromListWithDefault' 0
 	toList (Bytes xs) = Data.Sized.toList xs
 
 fromListPadLeft :: forall (n :: Nat). KnownNat n => [Word8] -> Bytes n
@@ -70,3 +74,9 @@ instance KnownNat n => Bits (Bytes n) where
 
 replicate :: KnownNat n => Word8 -> Bytes n
 replicate = Bytes . Sized.replicate'
+
+-- randomBytes :: 
+
+instance KnownNat n => Random (Bytes n) where
+	randomR = undefined
+	random = randomR (Utility.Bytes.replicate 0, Utility.Bytes.replicate 0xff)

@@ -1,5 +1,30 @@
 module Handshake where
 
--- import Handshake.Message
+import Cipher.CipherSuite
+import Control.Monad.State.Lazy
+import Handshake.Message
+import KeyExchange
+import ProtocolVersion
+import SessionId
+import System.Random (Random)
 
--- server :: 
+newtype Server = Server ()
+
+class Handshake m s where
+	sendMessage :: HandshakeMessage -> StateT s m ()
+	receiveMessage :: StateT s m HandshakeMessage
+	getRandom :: Random r => StateT s m r
+	-- handshake :: 
+
+newtype HandshakeTest a = HandshakeTest (State [HandshakeMessage] a)
+
+instance Handshake HandshakeTest s where
+
+server :: forall m. (Monad m, Handshake m Server) => StateT Server m ()
+server = receiveMessage >>= \case
+	ClientHelloMessage (ClientHello _version _random _ _cipherSuites) -> do
+		randomBytes <- getRandom
+		sendMessage $ ServerHelloMessage $ ServerHello tls1_2 randomBytes SessionId tlsEcdhAnonWithNullSha
+		-- sendMessage $ 
+	ClientKeyExchangeMessage ClientKeyExchange -> undefined
+-- 	_ -> undefined

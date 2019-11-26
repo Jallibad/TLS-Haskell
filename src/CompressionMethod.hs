@@ -1,10 +1,17 @@
 module CompressionMethod where
 
 -- import Data.Binary
+import Data.Void
 import RecordLayer.Types
 
-class CompressionMethod c m where
-	state :: a
-	compress :: Monad m => m a -> TLSPlaintext -> m TLSCompressedtext
+class CompressionMethod c where
+	type State c
+	compress :: TLSPlaintext -> Maybe TLSCompressedtext
 	-- TODO Report decompression length exceeds 2^14
-	decompress :: Monad m => m a -> TLSCiphertext -> m TLSCompressedtext
+	decompress :: TLSCiphertext -> Maybe TLSCompressedtext
+
+data Null
+
+instance CompressionMethod Null where
+	type State Null = Void
+	-- compress 

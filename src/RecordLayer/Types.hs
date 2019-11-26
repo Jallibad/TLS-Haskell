@@ -12,10 +12,12 @@ import ProtocolVersion
 import Utility.BinaryEnum (BinaryEnum, equivalences)
 import Utility.UInt (UInt)
 
-data MalformedMessageException = MalformedMessageException String deriving Show
+data MalformedMessageException = MalformedMessageException String
+	deriving Show
 instance Exception MalformedMessageException
 
-data ContentType = ChangeCipherSpec | Alert | Handshake | ApplicationData deriving (Eq, Ord, Show)
+data ContentType = ChangeCipherSpec | Alert | Handshake | ApplicationData
+	deriving (Eq, Ord, Show)
 instance BinaryEnum ContentType Word8 where
 	equivalences = fromList [(ChangeCipherSpec, 20), (Alert, 21), (Handshake, 22), (ApplicationData, 23)]
 
@@ -25,7 +27,8 @@ getByteStringWithLength = fromIntegral <$> get @(UInt n) >>= getLazyByteString
 makeByteStringWithLengths :: forall (n :: Nat). KnownNat n => ByteString -> [(UInt n, ByteString)]
 makeByteStringWithLengths = undefined
 
-data TLSPlaintext = TLSPlaintext {contentType :: ContentType, version :: ProtocolVersion, fragment :: ByteString} deriving (Eq, Show)
+data TLSPlaintext = TLSPlaintext {contentType :: ContentType, version :: ProtocolVersion, fragment :: ByteString}
+	deriving (Eq, Show)
 instance Binary TLSPlaintext where
 	get = TLSPlaintext <$> get <*> get <*> getByteStringWithLength @16
 	put (TLSPlaintext contentType version fragment) = do
