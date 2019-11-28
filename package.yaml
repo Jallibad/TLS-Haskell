@@ -9,9 +9,6 @@ ghc-options:
 - -Wall
 - -fno-warn-tabs
 - -Werror
-- -threaded
-- -rtsopts
-- -with-rtsopts=-N
 
 dependencies:
 - base
@@ -37,6 +34,7 @@ dependencies:
 - bimap
 - conduit
 - exceptions
+- template-haskell
 
 default-extensions:
 - TupleSections
@@ -125,3 +123,7 @@ executables:
   language:
     main:                Main.hs
     source-dirs:         app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N

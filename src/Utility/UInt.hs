@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Utility.UInt
@@ -9,62 +10,13 @@ import Control.Monad (replicateM)
 import Data.Binary (Binary, Word8, get, put)
 import Data.Bits (Bits (..), FiniteBits (..), testBitDefault)
 import Data.Foldable (foldl')
-import Data.Kind (Type)
 import Data.List.Split (chunksOf)
 import Data.Proxy (Proxy (..))
-import Data.Singletons
-import Data.Singletons.TypeLits
 import Data.Sized hiding (fmap, reverse, replicate, map, length, (++))
 import Data.Word
 import GHC.TypeNats (KnownNat, Nat, natVal)
 import System.Random
-
-data UIntFast (n :: Nat) where
-	UInt16 :: Word16 -> UIntFast 16
-	UIntBase :: UInt n -> UIntFast n
-
-safeConstruct :: Sing n -> UInt n -> UIntFast n
-safeConstruct sng num = case sng of
-	SNat -> undefined
-	_ -> UIntBase num
-
--- newtype UIntFast n = UIntFast (UIntFinder n)
-
--- instance KnownNat n => Show (UIntFast n) where
--- 	show uint = show n
-
--- type family UIntFinder (n :: Nat) where
--- 	UIntFinder 16	= Word16
--- 	UIntFinder 32	= Word32
--- 	UIntFinder n	= UInt n
-
--- type family IsBaseType (n :: Nat) where
--- 	IsBaseType 16	= 'False
--- 	IsBaseType 32	= 'False
--- 	IsBaseType n	= 'True
-
--- class (KnownNat numBits, Num (UInt' numBits)) =>
--- 		UnsignedInt (numBits :: Nat) where
--- 	type UInt' numBits
-
--- instance forall n. (KnownNat n, Num (UIntFinder n)) => UnsignedInt n where
--- 	type UInt' n = UIntFinder n --Decomp (IsBaseType n) n
-
--- class Num (Decomp isBaseType numBits) =>
--- 		Helper (isBaseType :: Bool) (numBits :: Nat) where
--- 	type Decomp isBaseType numBits
-
--- instance KnownNat n => Helper 'True n where
--- 	type Decomp 'True n = UInt n
-
--- instance Num (UIntFinder n) => Helper 'False n where
--- 	type Decomp 'False n = UIntFinder n
-
--- test :: UnsignedInt n => UInt' n -> UInt' n
--- test n = n + 1
-
--- testInstance :: UInt' 31
--- testInstance = (test :: UInt' 31 -> UInt' 31) (0 :: UInt' 31)
+import Utility.DeriveInstancesByUnwrapping
 
 type BitList (n :: Nat) = Sized [] n Bool
 newtype UInt (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)
@@ -140,3 +92,12 @@ instance KnownNat n => Bounded (UInt n) where
 instance KnownNat n => Random (UInt n) where
 	randomR (low, high) = first fromIntegral . randomR (toInteger low, toInteger high)
 	random = randomR (minBound, maxBound)
+
+data UIntFast (n :: Nat) where
+	UInt16 :: Word16 -> UIntFast 16
+	UIntBase :: UInt n -> UIntFast n
+
+deriveInstance ''UIntFast ''Show
+deriveInstance ''UIntFast ''Eq
+deriveInstance ''UIntFast ''Ord
+deriveInstance ''UIntFast ''Num
