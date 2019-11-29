@@ -8,7 +8,6 @@ copyright:           "2018 Jordan Alligood"
 ghc-options:
 - -Wall
 - -fno-warn-tabs
-- -Werror
 
 dependencies:
 - base
@@ -97,6 +96,8 @@ default-extensions:
 
 library:
   source-dirs: src/
+  dependencies:
+    - extra
 
 tests:
   test:
@@ -127,3 +128,4 @@ executables:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
+      - -Werror

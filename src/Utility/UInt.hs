@@ -10,41 +10,32 @@ import Control.Monad (replicateM)
 import Data.Binary (Binary, Word8, get, put)
 import Data.Bits (Bits (..), FiniteBits (..), testBitDefault)
 import Data.Foldable (foldl')
+-- import qualified Data.Kind
 import Data.List.Split (chunksOf)
 import Data.Proxy (Proxy (..))
-import Data.Sized hiding (fmap, reverse, replicate, map, length, (++))
+import Data.Sequence (Seq, (|>))
+-- import Data.Singletons
+import Data.Sized hiding (fmap, reverse, replicate, map, length, (++), (|>))
 import Data.Word
 import GHC.TypeNats (KnownNat, Nat, natVal)
+import Language.Haskell.TH
 import System.Random
-import Utility.DeriveInstancesByUnwrapping
+import Utility.TH.CaseBasedData
+import Utility.TH.DeriveInstancesByUnwrapping
 
 type BitList (n :: Nat) = Sized [] n Bool
-newtype UInt (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)
+newtype UIntBase (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)
 
 boolListToNum :: (Foldable t, Num a) => t Bool -> a
 boolListToNum = foldl' (\x b -> x*2+(if b then 1 else 0)) 0
 
-toWord8Chunk :: KnownNat n => UInt n -> [Word8]
-toWord8Chunk (UInt n) = map boolListToNum $ chunksOf 8 $ padding ++ bits
-	where
-		bits = toList n
-		padding = replicate ((8 - length bits) `mod` 8) False
-
-fromWord8Chunk :: KnownNat n => [Word8] -> UInt n
-fromWord8Chunk = foldl (\x y -> x*256 + fromIntegral y) 0
-
-asVector :: KnownNat n => (BitList n -> BitList n) -> UInt n -> UInt n
+asVector :: KnownNat n => (BitList n -> BitList n) -> UIntBase n -> UIntBase n
 asVector f (UInt v) = UInt $ f v
 
 asInteger :: Integral a => (Integer -> Integer -> Integer) -> a -> a -> a
 asInteger f a b = fromInteger $ f (toInteger a) (toInteger b)
 
-instance KnownNat n => Binary (UInt n) where
-	get = fromWord8Chunk <$> replicateM numChunks get
-		where numChunks = ceiling $ fromIntegral (natVal (Proxy :: Proxy n)) / (8 :: Rational)
-	put = mapM_ put . toWord8Chunk
-
-instance KnownNat n => Bits (UInt n) where
+instance KnownNat n => Bits (UIntBase n) where
 	(.&.) = asInteger (.&.)
 	(.|.) = asInteger (.|.)
 	xor = asInteger xor
@@ -59,18 +50,18 @@ instance KnownNat n => Bits (UInt n) where
 	bit = (2^)
 	popCount = undefined
 
-instance KnownNat n => Enum (UInt n) where
+instance KnownNat n => Enum (UIntBase n) where
 	toEnum = fromIntegral
 	fromEnum = fromIntegral
 
-instance KnownNat n => FiniteBits (UInt n) where
+instance KnownNat n => FiniteBits (UIntBase n) where
 	finiteBitSize = const $ fromIntegral $ natVal (Proxy :: Proxy n)
 
-instance KnownNat n => Integral (UInt n) where
+instance KnownNat n => Integral (UIntBase n) where
 	quotRem a b = (fromIntegral *** fromIntegral) $ quotRem (fromIntegral a :: Integer) (fromIntegral b)
 	toInteger (UInt n) = boolListToNum $ toList n
 
-instance KnownNat n => Num (UInt n) where
+instance KnownNat n => Num (UIntBase n) where
 	(+) = asInteger (+)
 	(*) = asInteger (*)
 	abs = id
@@ -79,25 +70,58 @@ instance KnownNat n => Num (UInt n) where
 		where bitRange = [0..fromIntegral (natVal (Proxy :: Proxy n)) - 1]
 	(-) = asInteger (-)
 
-instance KnownNat n => Real (UInt n) where
+instance KnownNat n => Real (UIntBase n) where
 	toRational = toRational . toInteger
 
-instance KnownNat n => Show (UInt n) where
+instance KnownNat n => Show (UIntBase n) where
 	show = show . toInteger
 
-instance KnownNat n => Bounded (UInt n) where
+instance KnownNat n => Bounded (UIntBase n) where
 	minBound = 0
 	maxBound = negate 1
 
-instance KnownNat n => Random (UInt n) where
+instance KnownNat n => Random (UIntBase n) where
 	randomR (low, high) = first fromIntegral . randomR (toInteger low, toInteger high)
 	random = randomR (minBound, maxBound)
 
-data UIntFast (n :: Nat) where
-	UInt16 :: Word16 -> UIntFast 16
-	UIntBase :: UInt n -> UIntFast n
+data UInt (n :: Nat) where
+	UInt16 :: Word16 -> UInt 16
+	UInt32 :: Word32 -> UInt 32
+	UIntBase :: UIntBase n -> UInt n
 
-deriveInstance ''UIntFast ''Show
-deriveInstance ''UIntFast ''Eq
-deriveInstance ''UIntFast ''Ord
-deriveInstance ''UIntFast ''Num
+-- fromIntegerExplicit :: KnownNat n => Integer -> UInt n
+-- fromIntegerExplicit n =
+-- 	chooseIfEqual @Nat @16 (UInt16 $ fromInteger n) $
+-- 	chooseIfEqual @Nat @32 (UInt32 $ fromInteger n) $
+-- 	UIntBase $ fromInteger n
+
+-- fromIntegerExplicit :: forall n. KnownNat n => Integer -> UInt n
+-- fromIntegerExplicit = unsuspend $
+-- 	chooseIfEqual @Nat @16 (Suspend $ UInt16 . fromInteger) $
+-- 	-- chooseIfEqual (Suspend $ UInt32 . fromInteger) $
+-- 	(Suspend $ UIntBase . fromInteger :: Suspension Integer UInt n)
+
+deriveInstance ''UInt ''Show
+deriveInstance ''UInt ''Eq
+deriveInstance ''UInt ''Ord
+deriveInstanceWith ''UInt ''Num $ sequence
+	[ valD (varP 'fromInteger) (normalB $ createConstructor ''UInt [|fromInteger|]) []
+	]
+-- deriveInstanceWith ''UInt ''Integral
+-- 	[d|$('quotRem) a b = (fromIntegral *** fromIntegral) $ quotRem (fromIntegral a :: Integer) (fromIntegral b)|]
+
+-- instance KnownNat n => Enum (UInt n) where
+-- 	toEnum = fromIntegral
+-- 	fromEnum = fromIntegral
+
+toWord8Chunk :: Integral a => a -> Seq Word8
+toWord8Chunk 0 = []
+toWord8Chunk n = toWord8Chunk (n `div` 256) |> fromIntegral (mod n 256)
+
+fromWord8Chunk :: (Foldable t, Integral a, Num b) => t a -> b
+fromWord8Chunk = foldl (\x y -> x*256 + fromIntegral y) 0
+
+-- instance KnownNat n => Binary (UInt n) where
+-- 	get = fromWord8Chunk <$> replicateM numChunks get
+-- 		where numChunks = ceiling $ fromIntegral (natVal (Proxy :: Proxy n)) / (8 :: Rational)
+-- 	put = mapM_ put . toWord8Chunk
