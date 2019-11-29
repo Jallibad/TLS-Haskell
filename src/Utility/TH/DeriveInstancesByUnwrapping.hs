@@ -67,8 +67,8 @@ makeInstanceType instanceName typeName = [t|forall n. KnownNat n => $(return $ C
 deriveInstance :: Name -> Name -> Q [Dec]
 deriveInstance typeName instanceName = do
 	constructorNames <- getDataConstructorNames typeName
-	functionDefinitions <- lookupClassMembers instanceName >>=
-		traverse (makeFunctionDefinition constructorNames)
+	functionDefinitions <- lookupClassMembers instanceName
+		>>= traverse (makeFunctionDefinition constructorNames)
 	instanceType <- makeInstanceType instanceName typeName
 	return [InstanceD Nothing [] instanceType functionDefinitions]
 
