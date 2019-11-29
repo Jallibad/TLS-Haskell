@@ -104,11 +104,12 @@ data UInt (n :: Nat) where
 deriveInstance ''UInt ''Show
 deriveInstance ''UInt ''Eq
 deriveInstance ''UInt ''Ord
-deriveInstanceWith ''UInt ''Num $ sequence
-	[ valD (varP 'fromInteger) (normalB $ createConstructor ''UInt [|fromInteger|]) []
+deriveInstanceWith ''UInt ''Num
+	[ ('fromInteger, createConstructor ''UInt [|fromInteger|])
 	]
--- deriveInstanceWith ''UInt ''Integral
--- 	[d|$('quotRem) a b = (fromIntegral *** fromIntegral) $ quotRem (fromIntegral a :: Integer) (fromIntegral b)|]
+deriveInstanceWith ''UInt ''Integral
+	[ ('quotRem, [|\a b -> (fromIntegral *** fromIntegral) $ quotRem (fromIntegral a :: Integer) (fromIntegral b)|])
+	]
 
 -- instance KnownNat n => Enum (UInt n) where
 -- 	toEnum = fromIntegral

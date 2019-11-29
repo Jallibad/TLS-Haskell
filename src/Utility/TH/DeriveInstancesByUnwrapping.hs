@@ -9,6 +9,7 @@ import Control.Monad ((>=>))
 import Data.Foldable (foldl')
 import Data.Functor ((<&>))
 import Data.Maybe (mapMaybe)
+import Data.Sequence (Seq, (|>))
 import GHC.TypeNats (KnownNat)
 import Language.Haskell.TH
 import Utility.TH.ConstructorUtils
@@ -17,8 +18,23 @@ import Utility.TH.TypeUtils
 getDataConstructorNames :: Name -> Q [Name]
 getDataConstructorNames = getDataConstructors >=> traverse getConstructorName
 
-makeFunctionDefinition :: (Name, Type) -> [Name] -> Q Dec
-makeFunctionDefinition (f, ForallT _ [AppT _ baseType] t) = funD f . fmap makeClause
+isTupleType :: Type -> Bool
+isTupleType (AppT t _) =	isTupleType t
+isTupleType (TupleT _) =	True
+isTupleType _ =				False
+
+getUnwrappedTupleElements :: Type -> Type -> Q (Seq Bool)
+getUnwrappedTupleElements baseType (AppT t1 t2) = (|> (baseType == t2)) <$> getUnwrappedTupleElements baseType t1
+getUnwrappedTupleElements _ (TupleT _) = return []
+getUnwrappedTupleElements _ t = fail $ mconcat ["Unexpected type: ", show t]
+
+wrapTupleType :: Type -> Type -> Q Exp -> Q Exp
+wrapTupleType baseType returnType exp = do
+	shouldWrap <- getUnwrappedTupleElements baseType returnType
+	fail $ show shouldWrap
+
+makeFunctionDefinition :: [Name] -> (Name, Type) -> Q Dec
+makeFunctionDefinition constructorNames (f, ForallT _ [AppT _ baseType] t) = funD f $ fmap makeClause constructorNames
 	where
 		makeClause :: Name -> Q Clause
 		makeClause constructorName = do
@@ -32,35 +48,37 @@ makeFunctionDefinition (f, ForallT _ [AppT _ baseType] t) = funD f . fmap makeCl
 				$ (varE . fst) <$> nameAndUnbox
 			clause patterns body []
 		wrapReturnType :: Name -> Q Exp -> Q Exp
-		wrapReturnType constructorName body = if getFunctionReturnType t == baseType
-			then appE (conE constructorName) body
-			else body
-makeFunctionDefinition _ = error "Can't handle case"
+		wrapReturnType constructorName body = case getFunctionReturnType t of
+			((== baseType) -> True) -> appE (conE constructorName) body
+			returnType | isTupleType returnType -> wrapTupleType baseType returnType body
+			_ -> body
+makeFunctionDefinition _ _ = error "Can't handle case"
 
 passthroughOrUnbox :: Type -> Type -> Q [(Name, Bool)]
 passthroughOrUnbox baseType t = mapM (\x -> (,x) <$> newName "n") $ (==baseType) <$> getFunctionArguments t
 
+lookupClassMembers :: Name -> Q [(Name, Type)]
+lookupClassMembers instanceName = reify instanceName <&> \(ClassI (ClassD _ _ _ _ info) _) ->
+	mapMaybe (\case {SigD n t -> Just (n, t); _ -> Nothing}) info
+
+makeInstanceType :: Name -> Name -> TypeQ
+makeInstanceType instanceName typeName = [t|forall n. KnownNat n => $(return $ ConT instanceName) ($(conT typeName) n)|]
+
 deriveInstance :: Name -> Name -> Q [Dec]
 deriveInstance typeName instanceName = do
 	constructorNames <- getDataConstructorNames typeName
-	let instanceType = [t|forall n. KnownNat n => $(return $ ConT instanceName) ($(conT typeName) n)|]
-	ClassI (ClassD _ _ _ _ info) _ <- reify instanceName
-	let classFunctions = mapMaybe (\case {SigD n t -> Just (n, t); _ -> Nothing}) info
-	let functionDefinitions = flip (makeFunctionDefinition ) constructorNames <$> classFunctions
-	sequence [instanceD (return []) instanceType functionDefinitions]
+	functionDefinitions <- lookupClassMembers instanceName >>=
+		traverse (makeFunctionDefinition constructorNames)
+	instanceType <- makeInstanceType instanceName typeName
+	return [InstanceD Nothing [] instanceType functionDefinitions]
 
-deriveInstanceWith :: Name -> Name -> Q [Dec] -> Q [Dec]
+deriveInstanceWith :: Name -> Name -> [(Name, Q Exp)] -> Q [Dec]
 deriveInstanceWith typeName instanceName providedDefinitions = do
 	constructorNames <- getDataConstructorNames typeName
-	(providedNames :: [Name]) <- flip fmap providedDefinitions $ mapMaybe $ \case
-		FunD name _ -> Just name
-		ValD (VarP name) _ _ -> Just name
-		_ -> Nothing
-	let instanceType = [t|forall n. KnownNat n => $(return $ ConT instanceName) ($(conT typeName) n)|]
-	ClassI (ClassD _ _ _ _ info) _ <- reify instanceName
-	let classFunctions = flip mapMaybe info $ \case
-		SigD n t | n `notElem` providedNames -> Just (n, t)
-		_ -> Nothing
-	let functionDefinitions = flip (makeFunctionDefinition ) constructorNames <$> classFunctions
-	(providedDefinitions' :: [Q Dec]) <- map return <$> providedDefinitions
-	sequence [instanceD (return []) instanceType (providedDefinitions' ++ functionDefinitions)]
+	let alreadyProvided = flip notElem (fst <$> providedDefinitions) . fst
+	functionDefinitions <- lookupClassMembers instanceName
+		<&> filter alreadyProvided
+		>>= traverse (makeFunctionDefinition constructorNames)
+	instanceType <- makeInstanceType instanceName typeName
+	providedDefinitions' <- traverse (\(n, e) -> valD (varP n) (normalB e) []) providedDefinitions
+	return [InstanceD Nothing [] instanceType (providedDefinitions' ++ functionDefinitions)]
