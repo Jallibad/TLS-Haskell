@@ -28,7 +28,7 @@ newtype Bytes n = Bytes (Sized [] n Word8)
 	deriving Eq
 
 fromUInt :: forall (n :: Nat). (KnownNat n, KnownNat (n * 8)) => UInt (n * 8) -> Bytes n
-fromUInt = fromList . toWord8Chunk
+fromUInt = fromList . GHC.Exts.toList . toWord8Chunk
 
 toUInt :: forall (n :: Nat). KnownNat n => Bytes n -> UInt (n * 8)
 toUInt = undefined
