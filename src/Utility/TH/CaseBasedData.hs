@@ -11,9 +11,9 @@ import Data.Singletons.Decide
 import Language.Haskell.TH
 import Utility.TH.ConstructorUtils
 
-newtype Suspension a t b = Suspend {unsuspend' :: a -> t b}
+newtype Suspension t a b = Suspend {unsuspend' :: a -> t b}
 
-unsuspend :: Suspension a t b -> a -> t b
+unsuspend :: Suspension t a b -> a -> t b
 unsuspend = unsuspend'
 
 chooseIfEqual :: forall k (a :: k) (b :: k) (t :: k -> Data.Kind.Type).

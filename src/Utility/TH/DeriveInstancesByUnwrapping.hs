@@ -5,8 +5,9 @@ module Utility.TH.DeriveInstancesByUnwrapping
 	, deriveInstanceWith
 	) where
 
+import Control.Arrow ((***))
 import Control.Monad ((>=>))
-import Data.Foldable (foldl')
+import Data.Foldable (foldl', toList)
 import Data.Functor ((<&>))
 import Data.Maybe (mapMaybe)
 import Data.Sequence (Seq, (|>))
@@ -28,10 +29,20 @@ getUnwrappedTupleElements baseType (AppT t1 t2) = (|> (baseType == t2)) <$> getU
 getUnwrappedTupleElements _ (TupleT _) = return []
 getUnwrappedTupleElements _ t = fail $ mconcat ["Unexpected type: ", show t]
 
-wrapTupleType :: Type -> Type -> Q Exp -> Q Exp
-wrapTupleType baseType returnType exp = do
-	shouldWrap <- getUnwrappedTupleElements baseType returnType
-	fail $ show shouldWrap
+wrapTupleType :: Name -> Type -> Type -> Q Exp -> Q Exp
+wrapTupleType constructorName baseType returnType e = do
+	shouldWrap <- toList <$> getUnwrappedTupleElements baseType returnType
+	let makePattern = uncurry LamE . (pure . TupP *** TupE) . unzip
+	let lambda = makePattern <$> mapM (generateWrapPair constructorName) shouldWrap
+	appE lambda e
+
+generateWrapPair :: Name -> Bool -> Q (Pat, Exp)
+generateWrapPair constructorName True = do
+	var <- newName "x"
+	return (VarP var, AppE (ConE constructorName) (VarE var))
+generateWrapPair _ False = do
+	var <- newName "x"
+	return (VarP var, VarE var)
 
 makeFunctionDefinition :: [Name] -> (Name, Type) -> Q Dec
 makeFunctionDefinition constructorNames (f, ForallT _ [AppT _ baseType] t) = funD f $ fmap makeClause constructorNames
@@ -50,7 +61,7 @@ makeFunctionDefinition constructorNames (f, ForallT _ [AppT _ baseType] t) = fun
 		wrapReturnType :: Name -> Q Exp -> Q Exp
 		wrapReturnType constructorName body = case getFunctionReturnType t of
 			((== baseType) -> True) -> appE (conE constructorName) body
-			returnType | isTupleType returnType -> wrapTupleType baseType returnType body
+			returnType | isTupleType returnType -> wrapTupleType constructorName baseType returnType body
 			_ -> body
 makeFunctionDefinition _ _ = error "Can't handle case"
 
@@ -62,7 +73,8 @@ lookupClassMembers instanceName = reify instanceName <&> \(ClassI (ClassD _ _ _ 
 	mapMaybe (\case {SigD n t -> Just (n, t); _ -> Nothing}) info
 
 makeInstanceType :: Name -> Name -> TypeQ
-makeInstanceType instanceName typeName = [t|forall n. KnownNat n => $(return $ ConT instanceName) ($(conT typeName) n)|]
+makeInstanceType instanceName typeName =
+	[t|forall n. KnownNat n => $(return $ ConT instanceName) ($(conT typeName) n)|]
 
 deriveInstance :: Name -> Name -> Q [Dec]
 deriveInstance typeName instanceName = do

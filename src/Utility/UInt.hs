@@ -7,18 +7,14 @@ module Utility.UInt
 
 import Control.Arrow (first, (***))
 import Control.Monad (replicateM)
-import Data.Binary (Binary, Word8, get, put)
+import Data.Binary (Binary, Word8, get, getWord8, put)
 import Data.Bits (Bits (..), FiniteBits (..), testBitDefault)
 import Data.Foldable (foldl')
--- import qualified Data.Kind
-import Data.List.Split (chunksOf)
 import Data.Proxy (Proxy (..))
 import Data.Sequence (Seq, (|>))
--- import Data.Singletons
 import Data.Sized hiding (fmap, reverse, replicate, map, length, (++), (|>))
 import Data.Word
 import GHC.TypeNats (KnownNat, Nat, natVal)
-import Language.Haskell.TH
 import System.Random
 import Utility.TH.CaseBasedData
 import Utility.TH.DeriveInstancesByUnwrapping
@@ -89,18 +85,6 @@ data UInt (n :: Nat) where
 	UInt32 :: Word32 -> UInt 32
 	UIntBase :: UIntBase n -> UInt n
 
--- fromIntegerExplicit :: KnownNat n => Integer -> UInt n
--- fromIntegerExplicit n =
--- 	chooseIfEqual @Nat @16 (UInt16 $ fromInteger n) $
--- 	chooseIfEqual @Nat @32 (UInt32 $ fromInteger n) $
--- 	UIntBase $ fromInteger n
-
--- fromIntegerExplicit :: forall n. KnownNat n => Integer -> UInt n
--- fromIntegerExplicit = unsuspend $
--- 	chooseIfEqual @Nat @16 (Suspend $ UInt16 . fromInteger) $
--- 	-- chooseIfEqual (Suspend $ UInt32 . fromInteger) $
--- 	(Suspend $ UIntBase . fromInteger :: Suspension Integer UInt n)
-
 deriveInstance ''UInt ''Show
 deriveInstance ''UInt ''Eq
 deriveInstance ''UInt ''Ord
@@ -110,10 +94,17 @@ deriveInstanceWith ''UInt ''Num
 deriveInstanceWith ''UInt ''Integral
 	[ ('quotRem, [|\a b -> (fromIntegral *** fromIntegral) $ quotRem (fromIntegral a :: Integer) (fromIntegral b)|])
 	]
+deriveInstanceWith ''UInt ''Bits
+	[ ('zeroBits, [|0|])
+	, ('bit, [|fromInteger . bit|])
+	]
 
--- instance KnownNat n => Enum (UInt n) where
--- 	toEnum = fromIntegral
--- 	fromEnum = fromIntegral
+instance KnownNat n => Enum (UInt n) where
+	toEnum = fromIntegral
+	fromEnum = fromIntegral
+
+instance KnownNat n => Real (UInt n) where
+	toRational = toRational . toInteger
 
 toWord8Chunk :: Integral a => a -> Seq Word8
 toWord8Chunk 0 = []
@@ -122,7 +113,7 @@ toWord8Chunk n = toWord8Chunk (n `div` 256) |> fromIntegral (mod n 256)
 fromWord8Chunk :: (Foldable t, Integral a, Num b) => t a -> b
 fromWord8Chunk = foldl (\x y -> x*256 + fromIntegral y) 0
 
--- instance KnownNat n => Binary (UInt n) where
--- 	get = fromWord8Chunk <$> replicateM numChunks get
--- 		where numChunks = ceiling $ fromIntegral (natVal (Proxy :: Proxy n)) / (8 :: Rational)
--- 	put = mapM_ put . toWord8Chunk
+instance KnownNat n => Binary (UInt n) where
+	get = fromWord8Chunk <$> replicateM numChunks getWord8
+		where numChunks = ceiling $ fromIntegral (natVal (Proxy :: Proxy n)) / (8 :: Rational)
+	put = mapM_ put . toWord8Chunk
