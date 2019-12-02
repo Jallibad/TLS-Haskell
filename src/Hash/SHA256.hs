@@ -23,7 +23,7 @@ data SHA256
 instance HashFunction SHA256 where
 	type BlockSize SHA256 = 64
 	type OutputSize SHA256 = 32
-	hash = (mergeHashValues @Word32) . foldl' hashChunk initialValues . padMessage
+	hash = (mergeHashValues @(UInt 32)) . foldl' hashChunk initialValues . padMessage
 
 type HashValues a = (a, a, a, a, a, a, a, a)
 
@@ -76,8 +76,8 @@ padZeros :: Int -> ByteString
 padZeros = maybe "" (\(x, xs) -> BS.pack $ (x .|. 0b10000000) : xs) . uncons . flip replicate 0
 
 getPaddingLength :: Num b => ByteString -> b
-getPaddingLength bs = fromIntegral $ if paddingDiff <= 0 then 512 - paddingDiff else paddingDiff
-	where paddingDiff = 56 - mod (BS.length bs) 64
+getPaddingLength bs = fromIntegral $ if paddingDiff <= 0 then 64 - paddingDiff else paddingDiff
+	where paddingDiff = 64 - 8 - (BS.length bs `mod` 8)
 
 hashChunk :: (Bits a, Num a) => HashValues a -> Vector a -> HashValues a
 hashChunk hs@(h0, h1, h2, h3, h4, h5, h6, h7) msg = (h0 + a, h1 + b, h2 + c, h3 + d, h4 + e, h5 + f, h6 + g, h7 + h)

@@ -1,37 +1,34 @@
 module Utility.Bytes
 	( Bytes
 	, (++)
+	, pattern (:<|)
+	, pattern (:|>)
+	, pattern Empty
 	, fromListPadLeft
 	, fromListPadRight
-	, fromUInt
 	, map
 	, Utility.Bytes.replicate
 	, zipWith
 	) where
 
+import Control.Arrow (second)
 import Control.Monad ((>=>))
 import Data.Binary (Binary, get, put)
 import Data.Bits
 import Data.Proxy (Proxy (Proxy))
-import Data.Sized (Sized, fromListWithDefault', toList, unsafeFromList')
+import Data.Singletons.Prelude.Enum (Succ)
+import Data.Sized (Sized, fromListWithDefault', toList, uncons, unsafeFromList')
 import qualified Data.Sized as Sized ((++), replicate', zipWith)
 import Data.Word (Word8)
 import GHC.Exts (IsList (..))
-import GHC.TypeNats (type (*), type (+), KnownNat, Nat, natVal)
+import GHC.TypeNats (type (+), KnownNat, Nat, natVal)
 import Prelude hiding ((++), map, zipWith)
 import System.Random
 import Text.Printf (printf)
 import Utility.Binary (getNBytes)
-import Utility.UInt (UInt, toWord8Chunk)
 
-newtype Bytes n = Bytes (Sized [] n Word8)
+newtype Bytes n = Bytes {unbytes :: Sized [] n Word8}
 	deriving Eq
-
-fromUInt :: forall (n :: Nat). (KnownNat n, KnownNat (n * 8)) => UInt (n * 8) -> Bytes n
-fromUInt = fromList . GHC.Exts.toList . toWord8Chunk
-
-toUInt :: forall (n :: Nat). KnownNat n => Bytes n -> UInt (n * 8)
-toUInt = undefined
 
 map :: KnownNat n => (Word8 -> Word8) -> Bytes n -> Bytes n
 map f (Bytes xs) = Bytes $ f <$> xs
@@ -60,7 +57,7 @@ instance forall (n :: Nat). KnownNat n => Show (Bytes n) where
 	show = GHC.Exts.toList >=> printf "%02x"
 
 instance forall (n :: Nat). KnownNat n => Binary (Bytes n) where
-	get = fromList <$> (getNBytes $ fromIntegral $ natVal $ Proxy @n)
+	get = fromList <$> getNBytes (fromIntegral $ natVal $ Proxy @n)
 	put = mapM_ put . GHC.Exts.toList
 
 instance KnownNat n => Bits (Bytes n) where
@@ -71,6 +68,21 @@ instance KnownNat n => Bits (Bytes n) where
 
 (++) :: (KnownNat a, KnownNat b) => Bytes a -> Bytes b -> Bytes (a + b)
 (Bytes a) ++ (Bytes b) = Bytes $ a Sized.++ b
+
+{-# COMPLETE Empty #-}
+pattern Empty :: Bytes 0
+pattern Empty <- []
+	where Empty = []
+
+{-# COMPLETE (:<|) #-}
+pattern (:<|) :: (KnownNat a, KnownNat (a + 1), (a + 1) ~ (1 + a)) => Word8 -> Bytes a -> Bytes (Succ a)
+pattern x :<| xs <- (second Bytes . uncons . unbytes -> (x, xs))
+	where x :<| xs = [x] ++ xs
+
+{-# COMPLETE (:|>) #-}
+pattern (:|>) :: KnownNat a => Bytes a -> Word8 -> Bytes (Succ a)
+pattern xs :|> x <- (second Bytes . uncons . unbytes -> (x, xs))
+	where xs :|> x = xs ++ [x]
 
 replicate :: KnownNat n => Word8 -> Bytes n
 replicate = Bytes . Sized.replicate'

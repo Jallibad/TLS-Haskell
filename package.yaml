@@ -98,6 +98,10 @@ library:
   source-dirs: src/
   dependencies:
     - extra
+    - ghc-prim
+    - typelits-witnesses
+    - fin
+    - decidable
 
 tests:
   test:

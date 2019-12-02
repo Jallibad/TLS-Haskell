@@ -8,7 +8,7 @@ import Data.Binary.Put (putLazyByteString, runPut)
 import Data.ByteString.Lazy as BS (ByteString, length, null)
 import Data.List (unfoldr)
 import GHC.Int (Int64)
-import RecordLayer.Types (MalformedMessageException (..))
+-- import RecordLayer.Types (MalformedMessageException (..))
 
 getAll :: Binary a => Get [a]
 getAll = getAll' get
@@ -32,13 +32,13 @@ getWithLengthTag = do
 	len <- get @n
 	decode <$> getLazyByteString (fromIntegral len)
 
-readAll :: Binary a => ByteString -> [a]
-readAll = unfoldr $ \stream ->
-	if BS.null stream
-		then Nothing
-		else case runGetOrFail get stream of
-			(Left (_rest, _bytesRead, errorMsg)) -> throw $ MalformedMessageException errorMsg
-			(Right (rest, _bytesRead, msg)) -> Just (msg, rest)
+-- readAll :: Binary a => ByteString -> [a]
+-- readAll = unfoldr $ \stream ->
+-- 	if BS.null stream
+-- 		then Nothing
+-- 		else case runGetOrFail get stream of
+-- 			(Left (_rest, _bytesRead, errorMsg)) -> throw $ MalformedMessageException errorMsg
+-- 			(Right (rest, _bytesRead, msg)) -> Just (msg, rest)
 
 withLengthTag :: forall n. (Binary n, Num n) => Put -> Put
 withLengthTag (runPut -> serialized) = do
