@@ -32,6 +32,13 @@ packages:
       sha256: 90f509eec4773b873b43fd7c4a37c7c4833dda3b33445734bfeaf3bb48053a56
   original:
     hackage: type-natural-0.8.2.0
+- completed:
+    hackage: decidable-0.1.4.0@sha256:c5f888ee3a3d70ca1aa029a8692c49b735a9a4700a9135921aa14e94b1146063,1724
+    pantry-tree:
+      size: 764
+      sha256: f854195edcf0a7d95324da39427cb5bd7465ef881bedf82623740d864ce9d05b
+  original:
+    hackage: decidable-0.1.4.0
 snapshots:
 - completed:
     size: 504771

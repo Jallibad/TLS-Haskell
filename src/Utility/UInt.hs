@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 
 module Utility.UInt
 	( UInt
@@ -18,6 +19,8 @@ import Data.Singletons.Decide
 import Data.Singletons.Prelude.Enum (Succ)
 import Data.Sized hiding (fmap, reverse, replicate, map, length, (++), (|>))
 import Data.Type.Equality ((:~:)(Refl))
+import Data.Type.Predicate
+import Data.Type.Predicate.Logic
 import Data.Word
 import GHC.Exts (Constraint)
 import GHC.TypeLits.Compare
@@ -26,6 +29,7 @@ import System.Random (Random (..))
 import Utility.Bytes
 import Utility.TH.CaseBasedData
 import Utility.TH.DeriveInstancesByUnwrapping
+import Utility.NatProofs
 
 type BitList (n :: Nat) = Sized [] n Bool
 newtype UIntBase (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)
@@ -120,48 +124,14 @@ toBytes n = case sameNat (Proxy @n) (Proxy @0) of
 	Just Refl -> []
 	Nothing -> undefined
 
-type p :=> q = forall a. p => (q => a) -> a
-type Proof p = () :=> p
-data Predicate (predicate :: k -> Constraint) = Predicate
-
-type BaseCase		c = Proof (c 0)
-type InductiveStep	c = forall n. KnownNat n => c n :=> c (Succ n)
-
-class Natural (n :: Nat)
-
-inductiveNat :: forall c n. KnownNat n => Predicate c -> BaseCase c -> InductiveStep c -> Proof (c n)
-inductiveNat pc baseCase inductiveStep = case (sing @n) %~ (sing @0) of
-	Proved Refl -> baseCase
-	Disproved refutation -> undefined
-	-- Nothing -> inductiveNat pc baseCase (inductiveStep :: c (n - 1) :=> c n) :: Proof (c (n - 1))
-
--- inductiveNat pc base step = case (Proxy @n) %<=? (Proxy @0) of
--- 	LE Refl -> base
--- 	NLE Refl Refl -> inductiveNat @c @(n - 1) pc base step
-
--- type Test n = ('GT ~ CmpNat n 0) :=> (((n - 1) + 1) ~ n)
-
--- class 'GT ~ CmpNat n 0 => AllGreaterThanZeroCanSubtract 
-
--- type AllGreaterThanZeroCanSubtract (CmpNat n 0 ~ Sing GT => (n - 1) + 1 ~ n)
-
--- class KnownNat n => Induction n p q where
--- 	induction :: p n :=> q n
-
--- instance Induction 0 (	Succ) (1 +)
-
-class (KnownNat n, KnownNat (n * 8)) => FromBytes n where
-	fromBytes :: Bytes n -> UInt (n * 8)
-
-instance FromBytes 0 where
-	fromBytes Empty = 0
-
-instance (KnownNat n, KnownNat (n * 8), (Succ m) ~ n, FromBytes m) => FromBytes n where
-	fromBytes (xs :|> x) = fromIntegral x + 256 * fromIntegral (fromBytes xs)
-
--- fromBytes :: forall (n :: Nat). (SingI (CmpNat n 0), KnownNat n, KnownNat (n * 8)) => Bytes n -> UInt (n * 8)
+fromBytes :: forall (n :: Nat). (KnownNat n, KnownNat (n * 8)) => Bytes n -> UInt (n * 8)
+fromBytes = case prove @CanInduct n of
+	Left (decrement :: Sing (n - 1))-> case prove @(HasAPredecessor ==> CanSubtract) n decrement of
+		Refl -> \((xs :: Bytes (n - 1)) :|> x) -> (fromIntegral $ fromBytes xs) * 256 + fromIntegral x
+	Right Refl -> const 0
+	where n = sing :: Sing n
 -- fromBytes = case (sing :: Sing (CmpNat n 0)) %~ (sing :: Sing 'GT) of
--- 	-- Proved Refl -> \((xs :: Bytes (n - 1)) :|> x) -> (fromIntegral $ fromBytes xs) * 256 + fromIntegral x
+-- 	Proved Refl -> \((xs :: Bytes (n - 1)) :|> x) -> (fromIntegral $ fromBytes xs) * 256 + fromIntegral x
 -- 	Disproved _ -> const 0
 
 toWord8Chunk :: forall n. KnownNat n => UInt n -> Seq Word8

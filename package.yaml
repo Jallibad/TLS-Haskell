@@ -102,6 +102,7 @@ library:
     - typelits-witnesses
     - fin
     - decidable
+    - ghc-typelits-knownnat
 
 tests:
   test:
