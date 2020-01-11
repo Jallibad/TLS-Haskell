@@ -7,7 +7,7 @@ import Data.Binary
 import Data.Binary.Get (getLazyByteString)
 import Data.Binary.Put (putLazyByteString)
 import Data.ByteString.Lazy as BS
-import GHC.TypeNats (KnownNat, Nat)
+import GHC.TypeNats (type (*), KnownNat, Nat)
 import ProtocolVersion
 import Utility.BinaryEnum (BinaryEnum, equivalences)
 import Utility.UInt (UInt)
@@ -22,7 +22,7 @@ instance BinaryEnum ContentType Word8 where
 	equivalences = fromList [(ChangeCipherSpec, 20), (Alert, 21), (Handshake, 22), (ApplicationData, 23)]
 
 getByteStringWithLength :: forall (n :: Nat). KnownNat n => Get ByteString
-getByteStringWithLength = fromIntegral <$> get @(UInt n) >>= getLazyByteString
+getByteStringWithLength = fromIntegral <$> get @(UInt (n * 8)) >>= getLazyByteString
 
 makeByteStringWithLengths :: forall (n :: Nat). KnownNat n => ByteString -> [(UInt n, ByteString)]
 makeByteStringWithLengths = undefined

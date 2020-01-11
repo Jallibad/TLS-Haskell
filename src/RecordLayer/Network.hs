@@ -11,7 +11,8 @@ import RecordLayer.Types
 import Utility.Binary
 
 receiveFragments :: Socket -> IO [TLSPlaintext]
-receiveFragments = (pure readAll <*>) . getContents
+-- receiveFragments = (pure readAll <*>) . getContents
+receiveFragments = undefined
 
 open :: IO Socket
 open = do

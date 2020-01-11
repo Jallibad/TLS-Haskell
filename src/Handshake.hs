@@ -19,6 +19,12 @@ class Handshake m s where
 newtype HandshakeTest a = HandshakeTest (State [HandshakeMessage] a)
 
 instance Handshake HandshakeTest s where
+	sendMessage :: HandshakeMessage -> StateT s HandshakeTest ()
+	sendMessage m = undefined
+	receiveMessage :: StateT s HandshakeTest HandshakeMessage
+	receiveMessage = undefined
+	getRandom :: Random r => StateT s m r
+	getRandom = undefined
 
 server :: forall m. (Monad m, Handshake m Server) => StateT Server m ()
 server = receiveMessage >>= \case

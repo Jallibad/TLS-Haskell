@@ -12,11 +12,10 @@ import Data.Function ((&))
 import Data.List (uncons)
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V (fromList)
-import Data.Word (Word32)
 import Hash
 import Utility.Binary --(getAll)
-import Utility.Bytes (Bytes, fromUInt)
-import Utility.UInt (UInt)
+import Utility.Bytes (Bytes)
+import Utility.UInt (UInt, toBytes)
 
 data SHA256
 
@@ -53,7 +52,7 @@ initialValues =
 	)
 
 mergeHashValues :: Integral a => HashValues a -> Bytes 32
-mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) = fromUInt $
+mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) = toBytes $
 	shiftL (fromIntegral h0) 224
 	.|. shiftL (fromIntegral h1) 192
 	.|. shiftL (fromIntegral h2) 160

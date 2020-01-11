@@ -10,30 +10,27 @@ ghc-options:
 - -fno-warn-tabs
 
 dependencies:
-- base
+- ghc-typelits-knownnat
+- ghc-typelits-natnormalise
+
 - text
-- bytestring
 - vector
 - mtl
 - safe-exceptions
 - time
 - network
-- cpu
+# - cpu
 - random
-- optparse-applicative
+# - optparse-applicative
 - sized
-- type-natural
-- megaparsec
-- containers
+# - type-natural
+# - megaparsec
 - parser-combinators
-- binary
-- singletons
 - split
 - monad-loops
 - bimap
-- conduit
+# - conduit
 - exceptions
-- template-haskell
 
 default-extensions:
 - TupleSections
@@ -96,13 +93,22 @@ default-extensions:
 
 library:
   source-dirs: src/
+  ghc-options:
+    - -fplugin GHC.TypeLits.KnownNat.Solver
+    # - -fplugin GHC.TypeLits.Normalise
   dependencies:
-    - extra
-    - ghc-prim
-    - typelits-witnesses
-    - fin
+    - base
+    - binary
+    - bytestring
+    - containers
     - decidable
-    - ghc-typelits-knownnat
+    - extra
+    - fin
+    - ghc-prim
+    - ListLike
+    - singletons
+    - template-haskell
+    - typelits-witnesses
 
 tests:
   test:
@@ -134,3 +140,5 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
       - -Werror
+    dependencies:
+      - language

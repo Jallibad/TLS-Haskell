@@ -9,12 +9,14 @@ module Utility.Bytes
 	, map
 	, Utility.Bytes.replicate
 	, zipWith
+	, unsafeFromList
 	) where
 
 import Control.Arrow (second)
 import Control.Monad ((>=>))
 import Data.Binary (Binary, get, put)
 import Data.Bits
+import Data.ListLike (ListLike, toList)
 import Data.Proxy (Proxy (Proxy))
 import Data.Singletons.Prelude.Enum (Succ)
 import Data.Sized (Sized, fromListWithDefault', toList, uncons, unsafeFromList')
@@ -75,7 +77,7 @@ pattern Empty <- []
 	where Empty = []
 
 {-# COMPLETE (:<|) #-}
-pattern (:<|) :: (KnownNat a, KnownNat (a + 1), (a + 1) ~ (1 + a)) => Word8 -> Bytes a -> Bytes (Succ a)
+pattern (:<|) :: (KnownNat a, (a + 1) ~ (1 + a)) => Word8 -> Bytes a -> Bytes (Succ a)
 pattern x :<| xs <- (second Bytes . uncons . unbytes -> (x, xs))
 	where x :<| xs = [x] ++ xs
 
@@ -92,3 +94,6 @@ replicate = Bytes . Sized.replicate'
 instance KnownNat n => Random (Bytes n) where
 	randomR = undefined
 	random = randomR (Utility.Bytes.replicate 0, Utility.Bytes.replicate 0xff)
+
+unsafeFromList :: (KnownNat n, ListLike (f Word8) Word8) => f Word8 -> Bytes n
+unsafeFromList = Bytes . unsafeFromList' . Data.ListLike.toList

@@ -1,9 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 
 module Utility.UInt
 	( UInt
+	, fromBytes
+	, toBytes
 	, toWord8Chunk
 	) where
 
@@ -13,23 +14,24 @@ import Data.Binary (Binary, get, getWord8, put)
 import Data.Bits (Bits (..), FiniteBits (..), testBitDefault)
 import Data.Foldable (foldl')
 import Data.Proxy (Proxy (..))
-import Data.Sequence (Seq, (|>))
-import Data.Singletons
-import Data.Singletons.Decide
-import Data.Singletons.Prelude.Enum (Succ)
-import Data.Sized hiding (fmap, reverse, replicate, map, length, (++), (|>))
-import Data.Type.Equality ((:~:)(Refl))
-import Data.Type.Predicate
-import Data.Type.Predicate.Logic
+import Data.Sequence (Seq, reverse)
+-- import Data.Singletons
+-- import Data.Singletons.Decide
+-- import Data.Singletons.Prelude.Enum (Succ)
+import Data.Sized (Sized, toList, unsafeFromList')
+-- import Data.Sized hiding (fmap, reverse, replicate, map, length, (++), (|>))
+-- import Data.Type.Equality ((:~:)(Refl))
+-- import Data.Type.Predicate
+-- import Data.Type.Predicate.Logic
 import Data.Word
-import GHC.Exts (Constraint)
-import GHC.TypeLits.Compare
+-- import GHC.Exts (Constraint)
+-- import GHC.TypeLits.Compare
 import GHC.TypeNats --(type (*), type (-), KnownNat, Nat, natVal, sameNat)
 import System.Random (Random (..))
 import Utility.Bytes
 import Utility.TH.CaseBasedData
 import Utility.TH.DeriveInstancesByUnwrapping
-import Utility.NatProofs
+-- import Utility.NatProofs
 
 type BitList (n :: Nat) = Sized [] n Bool
 newtype UIntBase (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)
@@ -49,7 +51,7 @@ instance KnownNat n => Bits (UIntBase n) where
 	xor = asInteger xor
 	complement = asVector $ fmap not
 	shift n i = fromInteger $ shift (fromIntegral n) i
-	rotate n i = boolListToNum $ fmap (\x -> testBit n $ (x - i) `mod` len) $ reverse [0.. len - 1]
+	rotate n i = boolListToNum $ fmap (\x -> testBit n $ (x - i) `mod` len) $ Prelude.reverse [0.. len - 1]
 		where len = finiteBitSize n
 	bitSizeMaybe = Just . finiteBitSize
 	bitSize = finiteBitSize
@@ -74,7 +76,7 @@ instance KnownNat n => Num (UIntBase n) where
 	(*) = asInteger (*)
 	abs = id
 	signum = const 1
-	fromInteger = UInt . unsafeFromList' . reverse . flip fmap bitRange . testBit
+	fromInteger = UInt . unsafeFromList' . Prelude.reverse . flip fmap bitRange . testBit
 		where bitRange = [0..fromIntegral (natVal (Proxy :: Proxy n)) - 1]
 	(-) = asInteger (-)
 
@@ -83,14 +85,6 @@ instance KnownNat n => Real (UIntBase n) where
 
 instance KnownNat n => Show (UIntBase n) where
 	show = show . toInteger
-
-instance KnownNat n => Bounded (UIntBase n) where
-	minBound = 0
-	maxBound = negate 1
-
-instance KnownNat n => Random (UIntBase n) where
-	randomR (low, high) = first fromIntegral . randomR (toInteger low, toInteger high)
-	random = randomR (minBound, maxBound)
 
 data UInt (n :: Nat) where
 	UInt8		:: Word8		-> UInt 8
@@ -119,24 +113,42 @@ instance KnownNat n => Enum (UInt n) where
 instance KnownNat n => Real (UInt n) where
 	toRational = toRational . toInteger
 
-toBytes :: forall (n :: Nat). (KnownNat n, KnownNat (n * 8)) => UInt (n * 8) -> Bytes n
-toBytes n = case sameNat (Proxy @n) (Proxy @0) of
-	Just Refl -> []
-	Nothing -> undefined
+instance KnownNat n => Bounded (UInt n) where
+	minBound = 0
+	maxBound = negate 1
+
+instance KnownNat n => Random (UInt n) where
+	randomR (low, high) = first fromIntegral . randomR (toInteger low, toInteger high)
+	random = randomR (minBound, maxBound)
+
+-- newtype Thing n = Thing {unthing :: UInt (n * 8)}
+toBytes :: forall (n :: Nat). (KnownNat 1, KnownNat n, KnownNat (n * 8)) => UInt (n * 8) -> Bytes n
+toBytes = unsafeFromList . toWord8Chunk
+-- toBytes = induction' (const []) f . Thing
+-- 	where
+-- 		f :: KnownNat m => (Thing m -> Bytes m) -> Thing (Succ m) -> Bytes (Succ m)
+-- 		f g (Thing n) = undefined
+-- toBytes = Thing ^>> induction (const []) ((undefined :: (1 <=? (n * 8)) ~ 'True => UInt (n * 8) -> Bytes n) . unthing)
 
 fromBytes :: forall (n :: Nat). (KnownNat n, KnownNat (n * 8)) => Bytes n -> UInt (n * 8)
-fromBytes = case prove @CanInduct n of
-	Left (decrement :: Sing (n - 1))-> case prove @(HasAPredecessor ==> CanSubtract) n decrement of
-		Refl -> \((xs :: Bytes (n - 1)) :|> x) -> (fromIntegral $ fromBytes xs) * 256 + fromIntegral x
-	Right Refl -> const 0
-	where n = sing :: Sing n
+fromBytes = undefined
+-- fromBytes = unthing . induction' (const $ Thing 0) (\g (xs :|> x) -> Thing $ (fromIntegral $ unthing $ g xs) * 256 + fromIntegral x)
+		
+-- fromBytes = unthing . induction (const $ Thing 0 :: Bytes 0 -> Thing 0) undefined
+-- fromBytes = case prove @CanInduct n of
+-- 	Left (decrement :: Sing (n - 1))-> case prove @(HasAPredecessor ==> CanSubtract) n decrement of
+-- 		Refl -> \((xs :: Bytes (n - 1)) :|> x) -> (fromIntegral $ fromBytes xs) * 256 + fromIntegral x
+-- 	Right Refl -> const 0
+-- 	where n = sing :: Sing n
 -- fromBytes = case (sing :: Sing (CmpNat n 0)) %~ (sing :: Sing 'GT) of
 -- 	Proved Refl -> \((xs :: Bytes (n - 1)) :|> x) -> (fromIntegral $ fromBytes xs) * 256 + fromIntegral x
 -- 	Disproved _ -> const 0
 
-toWord8Chunk :: forall n. KnownNat n => UInt n -> Seq Word8
-toWord8Chunk 0 = []
-toWord8Chunk n = toWord8Chunk (n `div` 256) |> fromIntegral (mod n 256)
+toWord8Chunk :: forall a b. (KnownNat a, KnownNat b, (a * 8) ~ b) => UInt b -> Seq Word8
+-- toWord8Chunk 0 = []
+-- toWord8Chunk n = toWord8Chunk (fromInteger $ toInteger n `div` 256 :: UInt n) |> fromIntegral (toInteger n `mod` 256)
+toWord8Chunk n = (\s -> fromIntegral $ shiftR n (fromIntegral s*8) .&. 255) <$> Data.Sequence.reverse [0.. size - 1]
+	where size = natVal (Proxy :: Proxy a)
 
 fromWord8Chunk :: (Foldable t, Integral a, Num b) => t a -> b
 fromWord8Chunk = foldl' (\x y -> x*256 + fromIntegral y) 0

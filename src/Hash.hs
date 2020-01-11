@@ -7,16 +7,16 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS (length, unpack)
 import Data.Kind (Type)
 import Data.Proxy (Proxy (Proxy))
-import GHC.TypeNats (type (+), type (-), KnownNat, Nat, natVal)
+import GHC.TypeNats (type (+), type (-), type (<=), KnownNat, Nat, natVal)
 import Prelude hiding ((++), map, replicate)
 import Utility.Bytes (Bytes, (++), fromListPadRight, map, replicate)
 
 class
 	( KnownNat (BlockSize h)
 	, KnownNat (OutputSize h)
-	, KnownNat (BlockSize h - OutputSize h)
-	, (OutputSize h + (BlockSize h - OutputSize h)) ~ BlockSize h)
-	=> HashFunction (h :: Type) where
+	, OutputSize h <= BlockSize h
+	, (OutputSize h + (BlockSize h - OutputSize h)) ~ BlockSize h
+	) => HashFunction (h :: Type) where
 		type BlockSize h :: Nat
 		type OutputSize h :: Nat
 		hash :: ByteString -> Bytes (OutputSize h)
