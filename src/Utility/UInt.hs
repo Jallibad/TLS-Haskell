@@ -15,23 +15,13 @@ import Data.Bits (Bits (..), FiniteBits (..), testBitDefault)
 import Data.Foldable (foldl')
 import Data.Proxy (Proxy (..))
 import Data.Sequence (Seq, reverse)
--- import Data.Singletons
--- import Data.Singletons.Decide
--- import Data.Singletons.Prelude.Enum (Succ)
 import Data.Sized (Sized, toList, unsafeFromList')
--- import Data.Sized hiding (fmap, reverse, replicate, map, length, (++), (|>))
--- import Data.Type.Equality ((:~:)(Refl))
--- import Data.Type.Predicate
--- import Data.Type.Predicate.Logic
 import Data.Word
--- import GHC.Exts (Constraint)
--- import GHC.TypeLits.Compare
 import GHC.TypeNats --(type (*), type (-), KnownNat, Nat, natVal, sameNat)
 import System.Random (Random (..))
 import Utility.Bytes
 import Utility.TH.CaseBasedData
 import Utility.TH.DeriveInstancesByUnwrapping
--- import Utility.NatProofs
 
 type BitList (n :: Nat) = Sized [] n Bool
 newtype UIntBase (n :: Nat) = UInt (BitList n) deriving (Eq, Ord)

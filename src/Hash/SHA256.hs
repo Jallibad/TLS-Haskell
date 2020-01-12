@@ -66,7 +66,7 @@ padMessage :: Binary a => ByteString -> [Vector a]
 padMessage = fmap V.fromList . runGet (getAll' $ getNBytes 64) . preprocess
 
 preprocess :: ByteString -> ByteString
-preprocess = mconcat . (<$> [id, padding, len]) . (&)
+preprocess = mconcat . flip fmap [id, padding, len] . (&)
 	where
 		padding = padZeros . getPaddingLength
 		len = encode . (* (8 :: UInt 64)) . fromIntegral . BS.length
@@ -75,8 +75,7 @@ padZeros :: Int -> ByteString
 padZeros = maybe "" (\(x, xs) -> BS.pack $ (x .|. 0b10000000) : xs) . uncons . flip replicate 0
 
 getPaddingLength :: Num b => ByteString -> b
-getPaddingLength bs = fromIntegral $ if paddingDiff <= 0 then 64 - paddingDiff else paddingDiff
-	where paddingDiff = 64 - 8 - (BS.length bs `mod` 8)
+getPaddingLength bs = fromIntegral $ 64 - ((BS.length bs + 8) `mod` 64)
 
 hashChunk :: (Bits a, Num a) => HashValues a -> Vector a -> HashValues a
 hashChunk hs@(h0, h1, h2, h3, h4, h5, h6, h7) msg = (h0 + a, h1 + b, h2 + c, h3 + d, h4 + e, h5 + f, h6 + g, h7 + h)
