@@ -39,6 +39,13 @@ packages:
       sha256: f854195edcf0a7d95324da39427cb5bd7465ef881bedf82623740d864ce9d05b
   original:
     hackage: decidable-0.1.4.0
+- completed:
+    hackage: trivial-constraint-0.6.0.0@sha256:117b4aed290097f48fa87fd18e8e365c1b58b917cf0397d3bc36fd89fc53e0d5,4093
+    pantry-tree:
+      size: 234
+      sha256: f199a6c270fc5d77c17f678d1c14713aa5934a6e8706a039c4bd705d989f5f0f
+  original:
+    hackage: trivial-constraint-0.6.0.0
 snapshots:
 - completed:
     size: 504771
