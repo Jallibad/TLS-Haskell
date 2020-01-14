@@ -84,6 +84,28 @@ getThreeRandoms g = flip evalState g $ do
 	c <- random
 	return [a, b, c]
 
+class CanCompose (list :: Type) (a :: Type) where
+	type ReturnType list a :: Type
+	type ArgType list a :: Type
+	compose :: ArgType list a -> [a] -> ReturnType list a
+
+instance CanCompose Void a where
+	type ReturnType Void a = CompoundGenerator (a, Void)
+	type ArgType Void a = CompoundGenerator Void
+	compose :: CompoundGenerator Void -> [a] -> CompoundGenerator (a, Void)
+	compose base xs = Compound (HardcodedValues xs) base
+instance CanCompose Void b => CanCompose (b, Void) a where
+	type ReturnType (b, Void) a = [b] -> CompoundGenerator (a, (b, Void))
+	type ArgType (b, Void) a = [b] -> ReturnType Void b
+	compose :: ([b] -> ReturnType Void b) -> [a] -> ReturnType (b, Void) a
+	-- compose = undefined
+	compose f as bs = Compound (HardcodedValues as) $ f bs
+
+-- instance (current ~ ReturnType c b, CanCompose (CompoundGenerator c) c b) => CanCompose ([b] -> current) (a, (b, c)) a where
+-- 	type ReturnType ([b] -> current) (a, (b, c)) a = [b] -> CompoundGenerator (a, (b, c))
+-- 	compose :: ([b] -> current) -> [a] -> [b] -> CompoundGenerator (a, (b, c))
+-- 	compose f as bs = Compound (HardcodedValues as) $ f bs
+
 -- class Compose v a where
 -- 	hardcode' :: [a] -> v
 -- 	prepend :: [b] -> v ->
