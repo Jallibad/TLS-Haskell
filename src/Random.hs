@@ -4,10 +4,12 @@ module Random where
 
 import Control.Monad.State.Lazy (State, evalState, get, put, runState)
 import Data.Constraint.Trivial
+import Data.Dynamic
 import Data.Kind (Constraint, Type)
 import Data.Void (Void)
 import GHC.TypeLits
 import qualified System.Random
+import Type.Reflection
 
 class RandomGenerator (g :: Type) where
 	type CanGenerate g a :: Constraint
@@ -16,6 +18,9 @@ class RandomGenerator g => Generatable g a where
 type Random g a = (CanGenerate g a, Generatable g a)
 
 newtype SimpleTestGenerator a = HardcodedValues [a]
+instance Typeable a => Show (SimpleTestGenerator a) where
+	show x = case typeOf x of
+		App _ t -> show t
 hardcoded :: [a] -> SimpleTestGenerator a
 hardcoded = HardcodedValues . cycle
 instance RandomGenerator (SimpleTestGenerator a) where
@@ -39,6 +44,15 @@ instance {-# OVERLAPPABLE #-} NotInList x xs => NotInList x (y, xs)
 data CompoundGenerator a where
 	Base :: CompoundGenerator Void
 	Compound :: NotInList a b => SimpleTestGenerator a -> CompoundGenerator b -> CompoundGenerator (a, b)
+
+class Show' list where
+	showHelper :: CompoundGenerator list -> [String]
+instance Show' Void where
+	showHelper = const []
+instance (Typeable a, Typeable b, Show' b) => Show' (a, b) where
+	showHelper (Compound x xs) = show x : showHelper xs
+instance Show' a => Show (CompoundGenerator a) where
+	show x = mconcat ["Generator: ", show $ showHelper x]
 
 instance RandomGenerator (CompoundGenerator Void) where
 	type CanGenerate (CompoundGenerator Void) a = Unconstrained0
@@ -88,43 +102,30 @@ class CanCompose (list :: Type) (a :: Type) where
 	type ReturnType list a :: Type
 	type ArgType list a :: Type
 	compose :: ArgType list a -> [a] -> ReturnType list a
-
 instance CanCompose Void a where
 	type ReturnType Void a = CompoundGenerator (a, Void)
 	type ArgType Void a = CompoundGenerator Void
 	compose :: CompoundGenerator Void -> [a] -> CompoundGenerator (a, Void)
 	compose base xs = Compound (HardcodedValues xs) base
-instance CanCompose Void b => CanCompose (b, Void) a where
-	type ReturnType (b, Void) a = [b] -> CompoundGenerator (a, (b, Void))
-	type ArgType (b, Void) a = [b] -> ReturnType Void b
-	compose :: ([b] -> ReturnType Void b) -> [a] -> ReturnType (b, Void) a
-	-- compose = undefined
+instance (CanCompose c b, ReturnType c b ~ CompoundGenerator (b, c), NotInList a c) => CanCompose (b, c) a where
+	type ReturnType (b, c) a = [b] -> CompoundGenerator (a, (b, c))
+	type ArgType (b, c) a = [b] -> ReturnType c b
+	compose :: ([b] -> ReturnType c b) -> [a] -> ReturnType (b, c) a
 	compose f as bs = Compound (HardcodedValues as) $ f bs
 
--- instance (current ~ ReturnType c b, CanCompose (CompoundGenerator c) c b) => CanCompose ([b] -> current) (a, (b, c)) a where
--- 	type ReturnType ([b] -> current) (a, (b, c)) a = [b] -> CompoundGenerator (a, (b, c))
--- 	compose :: ([b] -> current) -> [a] -> [b] -> CompoundGenerator (a, (b, c))
--- 	compose f as bs = Compound (HardcodedValues as) $ f bs
-
--- class Compose v a where
--- 	hardcode' :: [a] -> v
--- 	prepend :: [b] -> v ->
--- instance Compose (CompoundGenerator (a, Void)) a where
--- 	hardcode' :: [a] -> CompoundGenerator (a, Void)
--- 	hardcode' xs = Compound (HardcodedValues $ cycle xs) Base
--- instance forall a b v. Compose v b => Compose ([b] -> v) a where
--- 	hardcode' :: [a] -> [b] -> v
--- 	hardcode' = undefined
-	-- hardcode' xs = \ys -> hardcode' 
-		-- where
-		-- 	thing :: v
-		-- 	thing = hardcode' ys
-
--- class Compose v a b where
--- 	hardcode' :: CompoundGenerator b -> SimpleTestGenerator a -> v
--- instance Compose (CompoundGenerator (a, Void)) a Void where
--- 	hardcode' :: CompoundGenerator Void -> SimpleTestGenerator a -> CompoundGenerator (a, Void)
--- 	hardcode' base next = Compound next base
--- instance Compose v c (a, b) => Compose (CompoundGenerator (a, b) -> v) a b where
--- 	hardcode' :: CompoundGenerator b -> SimpleTestGenerator a -> (CompoundGenerator (a, b) -> v)
--- 	hardcode' base next = hardcode' $Compound next base
+class Helper list where
+	type Thing list a :: Constraint
+	helper :: (CanCompose list a, Thing list a) => [a] -> ReturnType list a
+instance Helper Void where
+	type Thing Void a = Unconstrained0
+	helper :: forall a. [a] -> CompoundGenerator (a, Void)
+	helper = compose @Void Base
+-- instance Helper Void => Helper (b, Void) where
+-- 	type Thing (b, Void) a = (ReturnType a b ~ CompoundGenerator (b, Void), Thing a b, Helper a, CanCompose a b)
+-- 	helper :: forall a. (Helper Void, Thing (b, Void) a) => [a] -> [b] -> CompoundGenerator (a, (b, Void))
+-- 	-- helper = undefined
+-- 	helper = compose @(b, Void) (helper @a)
+compose' :: forall a. [a] -> CompoundGenerator (a, Void)
+compose' = compose @Void Base
+compose'' :: forall a b. [a] -> [b] -> CompoundGenerator (a, (b, Void))
+compose'' = compose @(b, Void) compose'
