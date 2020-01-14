@@ -46,7 +46,7 @@ createConstructor dataTypeName constant = do
 	([(baseConstructor, _)], variableCases) <- partitionM (isBaseCase . snd) constructors
 	let thing = foldl (addCase kind constant) (makeSuspension baseConstructor constant) variableCases
 	[|unsuspend $ $(thing)|]
-	where
-		isBaseCase :: Type -> Q Bool
-		isBaseCase (VarT _) = return True
-		isBaseCase _ = return False
+
+isBaseCase :: Type -> Q Bool
+isBaseCase (VarT _) = return True
+isBaseCase _ = return False
