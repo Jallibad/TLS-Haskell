@@ -1,8 +1,7 @@
 module KeyExchange where
 
 import Control.Monad.State.Lazy (State)
--- import System.Random (RandomGen)
-import Random
+import Utility.Random
 
 class KeyExchange a g where
 	type PublicKey a

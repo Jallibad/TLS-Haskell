@@ -4,12 +4,8 @@ import Control.Monad.State.Lazy
 import Data.Kind (Type)
 import GHC.TypeNats (Nat)
 import KeyExchange
--- import Numeric.Natural (Natural)
--- import System.Random
 import Utility.ModularArithmetic
--- import Utility.UInt
-
-import Random
+import Utility.Random
 
 newtype DHE (n :: Type) (p :: Nat) = DHE (Mod n p)
 

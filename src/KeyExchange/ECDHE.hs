@@ -4,11 +4,10 @@ import Control.Monad.State.Lazy
 import Data.Kind (Type)
 import GHC.TypeNats (Nat)
 import KeyExchange
--- import System.Random
-import Random
 import Utility.EllipticCurve
 -- import Utility.EllipticCurve.Weierstrass
 import Utility.ModularArithmetic (ValidMod)
+import Utility.Random
 -- import Utility.UInt
 
 newtype ECDHE (c :: Type -> Nat -> Type) (n :: Type) (p :: Nat) = ECDHE (Point c n p)
