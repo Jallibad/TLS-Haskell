@@ -7,7 +7,7 @@ import SessionId (SessionId)
 import Utility.Bytes (Bytes)
 
 data ServerHello = ServerHello	{ serverVersion :: ProtocolVersion
-								, random :: Bytes 1 --32
+								, random :: Bytes 32
 								, sessionId :: SessionId
 								, cipherSuite :: CipherSuite
 								-- TODO add compression methods

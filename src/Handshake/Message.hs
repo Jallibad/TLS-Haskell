@@ -23,15 +23,14 @@ import Handshake.Message.ServerKeyExchange
 import Utility.Binary (getWithLengthTag)
 import Utility.UInt (UInt)
 
-data HandshakeMessage
-	= ClientHelloMessage ClientHello
-	| ServerHelloMessage ServerHello
-	| ServerCertificateMessage ServerCertificate
-	| ServerKeyExchangeMessage ServerKeyExchange
-	| ServerHelloDoneMessage ServerHelloDone
-	| ClientKeyExchangeMessage ClientKeyExchange
-	| FinishedMessage Finished
-	deriving Show
+data HandshakeMessage where
+	ClientHelloMessage :: ClientHello -> HandshakeMessage
+	ServerHelloMessage :: ServerHello -> HandshakeMessage
+	ServerCertificateMessage :: ServerCertificate -> HandshakeMessage
+	ServerKeyExchangeMessage :: ServerKeyExchange k -> HandshakeMessage
+	ServerHelloDoneMessage :: ServerHelloDone -> HandshakeMessage
+	ClientKeyExchangeMessage :: ClientKeyExchange -> HandshakeMessage
+	FinishedMessage :: Finished -> HandshakeMessage
 
 instance Binary HandshakeMessage where
 	get = getWord8 >>= \case

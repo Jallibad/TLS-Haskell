@@ -19,17 +19,12 @@ dependencies:
 - safe-exceptions
 - time
 - network
-# - cpu
 - random
-# - optparse-applicative
 - sized
-# - type-natural
-# - megaparsec
 - parser-combinators
 - split
 - monad-loops
 - bimap
-# - conduit
 - exceptions
 
 default-extensions:

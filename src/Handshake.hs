@@ -6,14 +6,17 @@ import Handshake.Message
 import KeyExchange
 import ProtocolVersion
 import SessionId
+import Utility.Bytes
+import Utility.EllipticCurve
+import Utility.EllipticCurve.Montgomery
 import Utility.Random
 
-newtype Server = Server ()
+-- newtype Server = Server ()
 
-class MonadState s m => Handshake m s where
-	-- sendMessage :: HandshakeMessage -> StateT s m ()
-	-- receiveMessage :: StateT s m HandshakeMessage
-	-- getRandom :: Random r => StateT s m r
+-- class MonadState s m => Handshake m s where
+-- 	sendMessage :: HandshakeMessage -> StateT s m ()
+-- 	receiveMessage :: StateT s m HandshakeMessage
+
 	-- handshake :: 
 
 -- newtype HandshakeTest a = HandshakeTest (State [HandshakeMessage] a)
@@ -34,3 +37,12 @@ class MonadState s m => Handshake m s where
 -- 		-- sendMessage $ 
 -- 	ClientKeyExchangeMessage ClientKeyExchange -> undefined
 -- -- 	_ -> undefined
+
+server :: (RandomGenerator g, Random g (Bytes 32)) => HandshakeMessage -> State g [HandshakeMessage]
+server (ClientHelloMessage (ClientHello _version _random _ _cipherSuites)) = do
+	randomBytes <- Utility.Random.random
+	return
+		[ ServerHelloMessage $ ServerHello tls1_2 randomBytes SessionId tlsEcdhAnonWithNullSha
+		-- , ServerKeyExchangeMessage $ ServerKeyExchange 
+		, ServerHelloDoneMessage ServerHelloDone
+		]

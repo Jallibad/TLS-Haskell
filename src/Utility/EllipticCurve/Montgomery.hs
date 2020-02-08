@@ -1,5 +1,6 @@
 module Utility.EllipticCurve.Montgomery
-	( x25519
+	( Point (Point)
+	, x25519
 	) where
 
 import Data.List (uncons)
